@@ -21,13 +21,7 @@ namespace SIVUG.Util
         // Constructor PRIVADO
         private ConexionDB()
         {
-            // Solo configuramos la cadena de texto una vez
-            string servidor = "localhost";
-            string baseDatos = "sivug";
-            string usuario = "root";
-            string password = "190904";
-
-            connectionString = $"Server={servidor};Database={baseDatos};Uid={usuario};Pwd={password};";
+            connectionString = Credenciales.ConnectionString;
         }
 
         public static ConexionDB GetInstance()
