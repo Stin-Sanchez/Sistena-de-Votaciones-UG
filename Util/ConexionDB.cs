@@ -46,6 +46,7 @@ namespace SIVUG.Util
             try
             {
                 // Retornamos un objeto NUEVO con la configuración lista
+                Console.WriteLine("Creando nueva conexion factory");
                 return new MySqlConnection(connectionString);
            
             }
