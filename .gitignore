@@ -42,7 +42,7 @@ bld/
 Generated\ Files/
 
 # Ignorar credenciales de base de datos
-SIVUG/Util/Credenciales.cs
+Util/Credenciales.cs
 
 # MSTest test Results
 [Tt]est[Rr]esult*/
