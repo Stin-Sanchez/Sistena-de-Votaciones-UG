@@ -98,8 +98,8 @@
     <Compile Include="Controllers\EstudianteController.cs" />
     <Compile Include="Models\DAO\EstudianteDAO.cs" />
     <Compile Include="Models\SERVICES\EstudianteService.cs" />
-    <Compile Include="Util\ConexionBaseDatos.cs" />
     <Compile Include="Util\ConexionDB.cs" />
+    <Compile Include="Util\Credenciales.cs" />
     <Compile Include="View\FormRegistro.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -137,6 +137,7 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
+    <None Include="Util\Credenciales.example" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

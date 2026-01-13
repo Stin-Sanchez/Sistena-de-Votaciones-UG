@@ -1,0 +1,16 @@
+﻿
+/* INSTRUCCIONES PARA EL EQUIPO:
+   1. Descarga este proyecto.
+   2. Ve a la carpeta 'Util'.
+   3. Crea un archivo nuevo llamado 'Credenciales.cs'.
+   4. Copia este código dentro y pon TU propia contraseña de MySQL.
+*/
+
+namespace SIVUG.Util
+{
+    public static class Credenciales
+    {
+        // CAMBIA "TU_CLAVE_AQUI" por tu contraseña real de MySQL
+        public static string ConnectionString = "Server=localhost;Database=sivug;Uid=root;Pwd=TU_CLAVE_AQUI;";
+    }
+}
