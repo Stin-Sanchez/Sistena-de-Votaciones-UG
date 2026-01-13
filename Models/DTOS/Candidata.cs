@@ -8,7 +8,7 @@ namespace SIVUG.Models
 {
     /* Representa una estudiante candidata en el concurso
     Hereda de Estudiante y agrega información específica del perfil de candidata */
-    class Candidata : Estudiante
+   public  class Candidata : Estudiante
     {
 
        

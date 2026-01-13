@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace SIVUG.Models
 {
     // Representa una fotografía dentro de un álbum de candidata
-    class Foto
+    public class Foto
     {
        
         //Identificador único de la foto(generado por BD)

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace SIVUG.Models
 {
     // Representa un comentario realizado por un estudiante en una foto
-    class Comentario
+   public class Comentario
     {
         //Constructor por defecto
         public Comentario()

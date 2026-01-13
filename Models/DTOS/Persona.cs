@@ -7,11 +7,11 @@ using System.Threading.Tasks;
 namespace SIVUG.Models
 {
     // Clase base que representa una persona en el sistema
-    class Persona
+   public  class Persona
     {
 
-
         //Atributos de la clase Madre con sus respectivos set y get
+        public int id {  get; set; }
         public string Nombres { get; set; }
         public string Apellidos { get; set; }
         public string DNI { get; set; }
@@ -22,14 +22,17 @@ namespace SIVUG.Models
         {
         }
 
-        //Constructor parametrizado
-        public Persona(string nombres, string apellidos, string dNI, byte edad)
+        public Persona(int id, string nombres, string apellidos, string dNI, byte edad)
         {
-            this.Nombres = nombres;
-            this.Apellidos = apellidos;
+            this.id = id;
+            Nombres = nombres;
+            Apellidos = apellidos;
             DNI = dNI;
-            this.Edad = edad;
+            Edad = edad;
         }
+
+        //Constructor parametrizado
+
 
         public string GetNombreCompleto()
         {

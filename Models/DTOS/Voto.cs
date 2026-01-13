@@ -15,7 +15,7 @@ namespace SIVUG.Models
         Fotogenia
     }
     //Representa un voto emitido por un estudiante hacia una candidata
-    class Voto
+    public class Voto
     {
 
         //Identificador unico del voto en la BD

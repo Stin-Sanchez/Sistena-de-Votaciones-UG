@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace SIVUG.Models
 {
     // Representa un álbum de fotos de una candidata
-    class Album
+   public  class Album
     {
         //Identificador único del álbum
         public long Id { get; set; }
@@ -37,7 +37,7 @@ namespace SIVUG.Models
             2. Verificar el tamaño y formato del archivo
             3. Persistir la foto en BD
             4. Opcionalmente: validar límite de fotos por álbum
-            5. Opcionalmente: generar thumbnails o procesar la imagen
+            5. Opcionalmente: generar thumbnails o procesar la imagenmodels
          * 
          */
 

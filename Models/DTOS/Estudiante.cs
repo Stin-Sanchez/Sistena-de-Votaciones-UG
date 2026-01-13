@@ -7,11 +7,12 @@ using System.Threading.Tasks;
 namespace SIVUG.Models
 {
     // Representa un estudiante de la universidad que puede votar en el concurso
-    class Estudiante : Persona
+    public class Estudiante : Persona
     {
 
 
         //Matrícula única del estudiante
+        public int Id { get; set; }
         public string Matricula { get; set; }
         //Nombre de la carrera que cursa
         public string Carrera { get; set; }
