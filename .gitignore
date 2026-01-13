@@ -43,6 +43,7 @@ Generated\ Files/
 
 # Ignorar credenciales de base de datos
 SIVUG/Util/ConexionDB.cs
+
 # MSTest test Results
 [Tt]est[Rr]esult*/
 [Bb]uild[Ll]og.*
