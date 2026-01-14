@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SIVUG.Models.DTOS;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,9 +12,12 @@ namespace SIVUG.Models
    public  class Candidata : Estudiante
     {
 
-       
+
+        public int CandidataId { get; set; }
+
+  
         // Lista de pasatiempos e intereses de la candidata
-     
+
         public List<string> Pasatiempos { get; set; } = new List<string>();
 
        
@@ -31,6 +35,10 @@ namespace SIVUG.Models
        
         public string ImagenPrincipal { get; set; }
 
+        public TipoVoto tipoCandidatura { get; set; }
+
+        public bool Activa { get; set; }
+
         //Constructor por defecto - inicializa listas vacías
         public Candidata() { }
 
@@ -42,7 +50,7 @@ namespace SIVUG.Models
                          List<string> habilidades = null,
                          List<string> aspiraciones = null,
                          string imagenPrincipal = null)
-            : base(matricula, "", 0, "") // Inicializa propiedades de Estudiante
+            : base(matricula, null, 0, false,false) // Inicializa propiedades de Estudiante
         {
             this.Nombres = nombres;
             this.Apellidos = apellidos;

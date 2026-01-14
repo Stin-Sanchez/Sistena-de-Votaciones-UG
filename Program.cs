@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using SIVUG.View;
 
 namespace SIVUG
 {
@@ -16,7 +17,7 @@ namespace SIVUG
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new FormRegistro());
+            Application.Run(new FormDashboard());
         }
     }
 }

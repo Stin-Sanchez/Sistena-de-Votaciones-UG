@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace SIVUG.Models.SERVICES
 {
@@ -28,6 +29,14 @@ namespace SIVUG.Models.SERVICES
 
             // Sin mapeos: Pasamos el DTO directo al DAO
             _dao.Guardar(estudiante);
+        }
+
+        public Estudiante ValidarEstudiante(string cedula)
+        {
+            if (string.IsNullOrWhiteSpace(cedula))
+                throw new ArgumentException("La cédula es requerida");
+
+            return _dao.ObtenerPorCedula(cedula);
         }
     }
 }
