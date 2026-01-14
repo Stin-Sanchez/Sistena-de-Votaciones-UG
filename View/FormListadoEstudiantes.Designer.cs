@@ -1,7 +1,6 @@
-﻿
-namespace SIVUG
+﻿namespace SIVUG.View
 {
-    partial class FormRegistro
+    partial class FormListadoEstudiantes
     {
         /// <summary>
         /// Required designer variable.
@@ -31,16 +30,14 @@ namespace SIVUG
         {
             this.SuspendLayout();
             // 
-            // FormRegistro
+            // FormListadoEstudiantes
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(310, 398);
-            this.MaximizeBox = false;
-            this.Name = "FormRegistro";
-            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "Registro de estudiante";
-            this.Load += new System.EventHandler(this.FormRegistroEstudiantes_Load);
+            this.ClientSize = new System.Drawing.Size(1016, 450);
+            this.Name = "FormListadoEstudiantes";
+            this.Text = "FormListadoEstudiantes";
+            this.Load += new System.EventHandler(this.FormListadoEstudiantes_Load);
             this.ResumeLayout(false);
 
         }
@@ -48,4 +45,3 @@ namespace SIVUG
         #endregion
     }
 }
-

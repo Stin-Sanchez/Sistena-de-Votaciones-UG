@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SIVUG.Models.DTOS;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -14,14 +15,15 @@ namespace SIVUG.Models
         //Matrícula única del estudiante
         public int Id { get; set; }
         public string Matricula { get; set; }
-        //Nombre de la carrera que cursa
-        public string Carrera { get; set; }
+        // --- CAMBIO: Relación Normalizada ---
+        // ID para la base de datos
+        public int IdCarrera { get; set; }
+        // Objeto completo para mostrar nombre en la vista
+        public Carrera Carrera { get; set; }
 
         //Semestre actual (1-10 típicamente)
         public byte Semestre { get; set; }
-        //Facultad a la que pertenece
-        public string Facultad { get; set; }
-
+       
         /*Indica si el estudiante ya emitió su voto para Reina
             NOTA: Se actualiza en la capa de servicio después de persistir el voto*/
         public bool HavotadoReina { get; set; }
@@ -42,14 +44,16 @@ namespace SIVUG.Models
          <param name="havotadoFotogenia">Por defecto false - no ha votado
        
          */
-        public Estudiante(string matricula, string carrera, byte semestre,
-                          string facultad, bool havotadoReina = false,
-                          bool havotadoFotogenia = false)
+        // Constructor actualizado
+        public Estudiante(string matricula, Carrera carrera, byte semestre,
+                          bool havotadoReina = false, bool havotadoFotogenia = false)
         {
             this.Matricula = matricula;
+            // Asignamos tanto el objeto como el ID para mantener consistencia
             this.Carrera = carrera;
+            if (carrera != null) this.IdCarrera = carrera.Id;
+
             this.Semestre = semestre;
-            this.Facultad = facultad;
             this.HavotadoReina = havotadoReina;
             this.HavotadoFotogenia = havotadoFotogenia;
         }

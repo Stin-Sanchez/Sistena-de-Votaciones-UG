@@ -11,8 +11,8 @@ namespace SIVUG.Models
     // Define los tipos de votación disponibles en el sistema
     public enum TipoVoto
     {
-        Reina,
-        Fotogenia
+        Reina = 1,
+        Fotogenia = 2
     }
     //Representa un voto emitido por un estudiante hacia una candidata
     public class Voto
