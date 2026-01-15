@@ -174,14 +174,19 @@ namespace SIVUG.View
 
         private void CrearPanelNavegacion()
         {
+            // 1. Panel Lateral Base
             Panel panelNav = new Panel
             {
-                // Sin cambios mayores, solo aseguramos Dock Left
-                Size = new Size(220, this.Height),
+                Width = 250, // Un poco más ancho para los submenús
                 BackColor = Color.FromArgb(44, 62, 80),
-                Dock = DockStyle.Left
+                Dock = DockStyle.Left,
+                AutoScroll = true // Por si el menú es muy largo
             };
             this.Controls.Add(panelNav);
+
+            // 2. Logo y Títulos (Se mantienen fijos arriba)
+            Panel panelLogo = new Panel { Dock = DockStyle.Top, Height = 140, BackColor = Color.Transparent };
+            panelNav.Controls.Add(panelLogo);
 
             Label lblLogo = new Label
             {
@@ -189,11 +194,10 @@ namespace SIVUG.View
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 24F, FontStyle.Bold),
                 Location = new Point(20, 20),
-                Size = new Size(180, 50),
-                TextAlign = ContentAlignment.MiddleCenter,
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+                Size = new Size(210, 50),
+                TextAlign = ContentAlignment.MiddleCenter
             };
-            panelNav.Controls.Add(lblLogo);
+            panelLogo.Controls.Add(lblLogo);
 
             Label lblSubtitulo = new Label
             {
@@ -201,50 +205,161 @@ namespace SIVUG.View
                 ForeColor = Color.FromArgb(189, 195, 199),
                 Font = new Font("Segoe UI", 8F),
                 Location = new Point(10, 75),
-                Size = new Size(200, 35),
-                TextAlign = ContentAlignment.MiddleCenter,
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+                Size = new Size(230, 35),
+                TextAlign = ContentAlignment.MiddleCenter
             };
-            panelNav.Controls.Add(lblSubtitulo);
+            panelLogo.Controls.Add(lblSubtitulo);
 
-            // Botones
-            int posY = 140;
-
-            panelNav.Controls.Add(CrearBotonNavegacion("🏠 Inicio", posY)); posY += 50;
-
-            btnEstudiantes = CrearBotonNavegacion("👥 Estudiantes", posY);
-            btnEstudiantes.Click += BtnEstudiantes_Click;
-            panelNav.Controls.Add(btnEstudiantes); posY += 50;
-
-            btnCandidatas = CrearBotonNavegacion("👤 Candidatas", posY);
-            btnCandidatas.Click += BtnCandidatas_Click;
-            panelNav.Controls.Add(btnCandidatas); posY += 50;
-
-            btnVotaciones = CrearBotonNavegacion("🗳️ Votaciones", posY);
-            btnVotaciones.Click += BtnVotaciones_Click;
-            panelNav.Controls.Add(btnVotaciones); posY += 50;
-
-            btnResultados = CrearBotonNavegacion("📊 Resultados", posY);
-            btnResultados.Click += BtnResultados_Click;
-            panelNav.Controls.Add(btnResultados);
-
-            btnActualizar = new Button
+            // 3. Contenedor de Menú (FlowLayout hace la magia del acordeón)
+            FlowLayoutPanel flowMenu = new FlowLayoutPanel
             {
-                Text = "🔄 Actualizar",
-                Size = new Size(180, 40),
-                Location = new Point(20, this.Height - 100), // Posición inicial
-                Anchor = AnchorStyles.Bottom | AnchorStyles.Left, // Se queda abajo
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(52, 152, 219),
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                Cursor = Cursors.Hand
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
+                AutoScroll = true
             };
-            btnActualizar.FlatAppearance.BorderSize = 0;
-            btnActualizar.Click += BtnActualizar_Click;
-            panelNav.Controls.Add(btnActualizar);
+            panelNav.Controls.Add(flowMenu);
+            // Traer al frente para que no lo tape el panelLogo si hay scroll
+            flowMenu.BringToFront();
+            panelLogo.SendToBack(); // Invertimos orden visual: Logo arriba (Dock Top), Flow abajo (Dock Fill)
+
+
+            // --- GENERACIÓN DE BOTONES ---
+
+            // A. Inicio (Botón simple)
+            flowMenu.Controls.Add(CrearBotonMenuSimple("🏠 Inicio", (s, e) => CargarDatos()));
+
+            // B. Estudiantes (Botón simple)
+            flowMenu.Controls.Add(CrearBotonMenuSimple("👥 Estudiantes", BtnEstudiantes_Click));
+
+            // C. CANDIDATAS (MENÚ DESPLEGABLE)
+            // Aquí definimos las sub-opciones y sus acciones
+            var subMenuCandidatas = new Panel(); // Placeholder variable
+            subMenuCandidatas = CrearGrupoMenu("👤 Candidatas", flowMenu, new List<(string, EventHandler)>
+    {
+        ("📋 Registro / Admin", BtnCandidatas_Click), // Tu form antiguo
+        ("🌟 Catálogo Visual", (s,e) => { new FormCatalogoCandidatas().ShowDialog(); }), // El catálogo nuevo
+        ("📸 Gestión de Álbumes", BtnGestionAlbumes_Click) // Nueva función
+    });
+            flowMenu.Controls.Add(subMenuCandidatas);
+
+            // D. Votaciones (Botón simple)
+            flowMenu.Controls.Add(CrearBotonMenuSimple("🗳️ Votaciones", BtnVotaciones_Click));
+
+            // E. Resultados (Botón simple)
+            flowMenu.Controls.Add(CrearBotonMenuSimple("📊 Resultados", BtnResultados_Click));
+
+            // Botón Actualizar (Fijo al final o agregado al flujo)
+            flowMenu.Controls.Add(CrearBotonMenuSimple("🔄 Actualizar Datos", BtnActualizar_Click));
         }
 
+        private void BtnGestionAlbumes_Click(object sender, EventArgs e)
+        {
+            // Ahora lo abrimos directo, porque tiene su propio buscador interno
+            FormGestionAlbumes formGestor = new FormGestionAlbumes();
+            formGestor.ShowDialog();
+        }
+
+        // 1. Crea un botón simple sin submenú
+        private Button CrearBotonMenuSimple(string texto, EventHandler eventoClick)
+        {
+            Button btn = new Button
+            {
+                Text = texto,
+                Size = new Size(250, 45), // Ancho igual al panel
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(44, 62, 80), // Color fondo oscuro
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 11F),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(20, 0, 0, 0),
+                Cursor = Cursors.Hand,
+                Margin = new Padding(0) // Sin espacios entre botones
+            };
+            btn.FlatAppearance.BorderSize = 0;
+            btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(52, 73, 94);
+
+            if (eventoClick != null) btn.Click += eventoClick;
+
+            return btn;
+        }
+
+        // 2. Crea un GRUPO (Botón Principal + Panel Oculto con Subbotones)
+        private Panel CrearGrupoMenu(string tituloPrincipal, FlowLayoutPanel contenedorPadre, List<(string, EventHandler)> subOpciones)
+        {
+            // Panel contenedor del grupo (se ajusta automáticamente)
+            Panel panelGrupo = new Panel
+            {
+                Size = new Size(250, 45), // Altura inicial (solo botón principal)
+                Margin = new Padding(0),
+                BackColor = Color.Transparent
+            };
+
+            // Panel oculto para los sub-items
+            Panel panelSubItems = new Panel
+            {
+                Size = new Size(250, subOpciones.Count * 40), // Altura = cant items * alto item
+                Location = new Point(0, 45), // Debajo del botón principal
+                BackColor = Color.FromArgb(34, 49, 63), // Un poco más oscuro
+                Visible = false // Empieza oculto
+            };
+
+            // Botón Principal (El que despliega)
+            Button btnPrincipal = new Button
+            {
+                Text = tituloPrincipal + " ▼", // Indicador visual
+                Size = new Size(250, 45),
+                Location = new Point(0, 0),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(44, 62, 80),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(20, 0, 0, 0),
+                Cursor = Cursors.Hand
+            };
+            btnPrincipal.FlatAppearance.BorderSize = 0;
+
+            // Lógica de Acordeón: Al hacer clic, mostramos/ocultamos y ajustamos altura
+            btnPrincipal.Click += (s, e) =>
+            {
+                bool estadoActual = panelSubItems.Visible;
+                panelSubItems.Visible = !estadoActual; // Invertir visibilidad
+
+                // Ajustar altura del contenedor padre para empujar los otros botones
+                panelGrupo.Height = !estadoActual ? (45 + panelSubItems.Height) : 45;
+            };
+
+            // Crear los botones hijos
+            int ySub = 0;
+            foreach (var (texto, evento) in subOpciones)
+            {
+                Button btnSub = new Button
+                {
+                    Text = texto,
+                    Size = new Size(250, 40),
+                    Location = new Point(0, ySub),
+                    FlatStyle = FlatStyle.Flat,
+                    BackColor = Color.Transparent, // Hereda el oscuro del panelSubItems
+                    ForeColor = Color.Silver, // Texto un poco más gris
+                    Font = new Font("Segoe UI", 10F),
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    Padding = new Padding(40, 0, 0, 0), // Más sangría (indentación)
+                    Cursor = Cursors.Hand
+                };
+                btnSub.FlatAppearance.BorderSize = 0;
+                btnSub.FlatAppearance.MouseOverBackColor = Color.FromArgb(52, 73, 94);
+                btnSub.Click += evento;
+
+                panelSubItems.Controls.Add(btnSub);
+                ySub += 40;
+            }
+
+            panelGrupo.Controls.Add(panelSubItems);
+            panelGrupo.Controls.Add(btnPrincipal);
+
+            return panelGrupo;
+        }
         private Button CrearBotonNavegacion(string texto, int posY)
         {
             Button btn = new Button

@@ -445,14 +445,26 @@ namespace SIVUG.View
         {
             try
             {
-                string carpeta = Path.Combine(Application.StartupPath, "ImagenesCandidatas");
-                if (!Directory.Exists(carpeta)) Directory.CreateDirectory(carpeta);
-                string nombre = $"candidata_{estudianteSeleccionado.DNI}_{DateTime.Now:yyyyMMddHHmmss}{Path.GetExtension(rutaImagenSeleccionada)}";
-                string destino = Path.Combine(carpeta, nombre);
-                File.Copy(rutaImagenSeleccionada, destino, true);
-                return destino;
+                string directorioBase = AppDomain.CurrentDomain.BaseDirectory;
+                string rutaCarpetaSegura = Path.GetFullPath(Path.Combine(directorioBase, @"..\..\..\ImagenesCandidatas"));
+                if (!Directory.Exists(rutaCarpetaSegura))
+                {
+                    Directory.CreateDirectory(rutaCarpetaSegura);
+                }
+                // Generar nombre único
+                string extension = Path.GetExtension(rutaImagenSeleccionada);
+                string nombreArchivo = $"candidata_{estudianteSeleccionado.DNI}_{DateTime.Now:yyyyMMddHHmmss}{extension}";
+
+                // Ruta final
+                string rutaDestino = Path.Combine(rutaCarpetaSegura, nombreArchivo);
+                File.Copy(rutaImagenSeleccionada, rutaDestino, true);
+                return rutaDestino;
             }
-            catch { return null; }
+            catch(Exception ex) {
+                MessageBox.Show($"Error al guardar la imagen: {ex.Message}",
+            "Advertencia", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+                return null; }
         }
 
         private void BtnNuevo_Click(object sender, EventArgs e)

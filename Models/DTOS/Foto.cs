@@ -19,6 +19,8 @@ namespace SIVUG.Models
         //Descripción o pie de foto
         public string Descripcion { get; set; }
 
+        public DateTime FechaSubida { get; set; }
+
         /*
          *Relacion Many to One con Albun
          *Muchas fotos podrian estar  en un solo album

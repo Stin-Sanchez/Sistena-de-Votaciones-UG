@@ -107,6 +107,7 @@
   <ItemGroup>
     <Compile Include="Controllers\DashboardController.cs" />
     <Compile Include="Controllers\EstudianteController.cs" />
+    <Compile Include="Models\DAO\AlbunDAO.cs" />
     <Compile Include="Models\DAO\CandidataDAO.cs" />
     <Compile Include="Models\DAO\CarreraDAO.cs" />
     <Compile Include="Models\DAO\EstudianteDAO.cs" />
@@ -121,17 +122,35 @@
     <Compile Include="Models\SERVICES\VotacionService.cs" />
     <Compile Include="Util\ConexionDB.cs" />
     <Compile Include="Util\Credenciales.cs" />
+    <Compile Include="View\FormCatalogoCandidatas.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="View\FormCatalogoCandidatas.Designer.cs">
+      <DependentUpon>FormCatalogoCandidatas.cs</DependentUpon>
+    </Compile>
     <Compile Include="View\FormDashboard.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="View\FormDashboard.Designer.cs">
       <DependentUpon>FormDashboard.cs</DependentUpon>
     </Compile>
+    <Compile Include="View\FormGestionAlbumes.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="View\FormGestionAlbumes.Designer.cs">
+      <DependentUpon>FormGestionAlbumes.cs</DependentUpon>
+    </Compile>
     <Compile Include="View\FormListadoEstudiantes.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="View\FormListadoEstudiantes.Designer.cs">
       <DependentUpon>FormListadoEstudiantes.cs</DependentUpon>
+    </Compile>
+    <Compile Include="View\FormPerfilCandidata.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="View\FormPerfilCandidata.Designer.cs">
+      <DependentUpon>FormPerfilCandidata.cs</DependentUpon>
     </Compile>
     <Compile Include="View\FormRegistro.cs">
       <SubType>Form</SubType>
@@ -169,11 +188,20 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <EmbeddedResource Include="View\FormCatalogoCandidatas.resx">
+      <DependentUpon>FormCatalogoCandidatas.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="View\FormDashboard.resx">
       <DependentUpon>FormDashboard.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="View\FormGestionAlbumes.resx">
+      <DependentUpon>FormGestionAlbumes.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="View\FormListadoEstudiantes.resx">
       <DependentUpon>FormListadoEstudiantes.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="View\FormPerfilCandidata.resx">
+      <DependentUpon>FormPerfilCandidata.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="View\FormRegistro.resx">
       <DependentUpon>FormRegistro.cs</DependentUpon>
@@ -199,8 +227,6 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="resources\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
