@@ -120,7 +120,6 @@
     <Compile Include="Models\SERVICES\EstudianteService.cs" />
     <Compile Include="Models\SERVICES\VotacionService.cs" />
     <Compile Include="Util\ConexionDB.cs" />
-    <Compile Include="Util\Credenciales.cs" />
     <Compile Include="View\FormDashboard.cs">
       <SubType>Form</SubType>
     </Compile>
