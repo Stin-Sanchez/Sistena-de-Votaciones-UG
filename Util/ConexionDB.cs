@@ -1,4 +1,5 @@
-﻿using MySql.Data.MySqlClient;
+﻿
+using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -21,7 +22,7 @@ namespace SIVUG.Util
         // Constructor PRIVADO
         private ConexionDB()
         {
-            connectionString = Credenciales.ConnectionString;
+            connectionString=Credenciales.ConnectionString;
         }
 
         public static ConexionDB GetInstance()
