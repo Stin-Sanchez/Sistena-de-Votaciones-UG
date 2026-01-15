@@ -23,6 +23,8 @@ namespace SIVUG.Models
         //Descripción del contenido del álbum
         public string Descripcion { get; set; }
 
+        public DateTime FechaCreacion { get; set; }
+
         /*
           Factory method que crea una nueva Foto asociada a este álbum.
           NO valida ni persiste datos - eso es responsabilidad de la capa de servicio.
