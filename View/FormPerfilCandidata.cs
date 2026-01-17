@@ -1,5 +1,6 @@
 ﻿using SIVUG.Models;
 using SIVUG.Models.DAO;
+using SIVUG.Models.DTOS;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -332,9 +333,22 @@ namespace SIVUG.View
                         try { pic.Image = Image.FromFile(foto.RutaArchivo); } catch { }
                     }
 
-                    // Efecto al hacer clic (Zoom o ver detalle)
-                    // Por ahora, simple MessageBox o podrías abrir un visor
-                    pic.Click += (s, e) => MessageBox.Show(foto.Descripcion ?? "Sin descripción", "Detalle de Foto");
+                    pic.Click += (s, e) => {
+
+                        // Pasamos:
+                        // 1. La foto específica a la que se dio click (foto)
+                        // 2. La lista COMPLETA de fotos de ese álbum (fotos) -> 
+                        // 3. El estudiante que esta en la sesion
+
+                        if (Sesion.UsuarioLogueado == null)
+                        {
+                            MessageBox.Show("Debes iniciar sesión para ver detalles y comentar.");
+                            return; // O abrir el FormLogin
+                        }
+                        FormDetalleFoto frmDetalle = new FormDetalleFoto(foto, fotos, Sesion.UsuarioLogueado);
+
+                        frmDetalle.ShowDialog();
+                    };
 
                     scrollFotos.Controls.Add(pic);
                 }

@@ -9,41 +9,39 @@ namespace SIVUG.Models
     // Representa un comentario realizado por un estudiante en una foto
    public class Comentario
     {
-        //Constructor por defecto
         public Comentario()
         {
         }
 
-        //Constructor parametrizado 
-        public Comentario( string contenido, Estudiante estudiante, Foto fotoComentada)
+        public Comentario(string contenido, Estudiante estudiante, Foto fotoComentada)
         {
-        
+            // Validacion basica (opcional pero recomendada)
+            if (string.IsNullOrWhiteSpace(contenido))
+                throw new ArgumentException("El comentario no puede estar vacío.");
+
             this.Contenido = contenido;
             this.FechaComentario = DateTime.Now;
+
+            // Asignamos las relaciones de objetos
             this.Estudiante = estudiante;
             this.FotoComentada = fotoComentada;
+
+            // TRUCO PRO: Si los objetos ya tienen ID, asignamos las FK automáticamente
+            if (estudiante != null) this.EstudianteId = estudiante.Id;
+            if (fotoComentada != null) this.FotoId = fotoComentada.Id;
         }
-        //Identificador único del comentario(generado por BD)
+
         public long Id { get; set; }
-
-        //Texto del comentario
         public string Contenido { get; set; }
-
-        //Fecha y hora en el que se publico el comentario
         public DateTime FechaComentario { get; set; }
 
-        /*
-         * Relacion Many to One con estudiante 
-         * Un estudiante puede comentar N comentarios , y dichos comentarios
-         * le pertenecen a un solo estudiante
-         */
-        public Estudiante Estudiante { get; set; }
+        // --- CLAVES FORÁNEAS (Muy útiles para SQL) ---
+        public long EstudianteId { get; set; }
+        public long FotoId { get; set; }
 
-        /*
-         * Relacion Many to One con Foto 
-         * Una foto puede ser comentada N veces y dichos comentarios
-         * le pertenecen unicamente a dicha foto 
-         */
+        // --- RELACIONES DE NAVEGACIÓN ---
+        public Estudiante Estudiante { get; set; }
         public Foto FotoComentada { get; set; }
     }
 }
+

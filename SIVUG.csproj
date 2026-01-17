@@ -48,6 +48,9 @@
     <Reference Include="K4os.Hash.xxHash, Version=1.0.8.0, Culture=neutral, PublicKeyToken=32cd54395057cec3, processorArchitecture=MSIL">
       <HintPath>..\packages\K4os.Hash.xxHash.1.0.8\lib\net462\K4os.Hash.xxHash.dll</HintPath>
     </Reference>
+    <Reference Include="MaterialSkin, Version=2.3.1.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\MaterialSkin.2.2.3.1\lib\net461\MaterialSkin.dll</HintPath>
+    </Reference>
     <Reference Include="Microsoft.Bcl.AsyncInterfaces, Version=8.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>packages\Microsoft.Bcl.AsyncInterfaces.8.0.0\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
     </Reference>
@@ -69,6 +72,7 @@
       <HintPath>..\packages\System.Configuration.ConfigurationManager.8.0.0\lib\net462\System.Configuration.ConfigurationManager.dll</HintPath>
     </Reference>
     <Reference Include="System.Core" />
+    <Reference Include="System.Design" />
     <Reference Include="System.Diagnostics.DiagnosticSource, Version=8.0.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>packages\System.Diagnostics.DiagnosticSource.8.0.1\lib\net462\System.Diagnostics.DiagnosticSource.dll</HintPath>
     </Reference>
@@ -110,6 +114,7 @@
     <Compile Include="Models\DAO\AlbunDAO.cs" />
     <Compile Include="Models\DAO\CandidataDAO.cs" />
     <Compile Include="Models\DAO\CarreraDAO.cs" />
+    <Compile Include="Models\DAO\ComentarioDao.cs" />
     <Compile Include="Models\DAO\EstudianteDAO.cs" />
     <Compile Include="Models\DAO\FacultadDAO.cs" />
     <Compile Include="Models\DAO\VotoDAO.cs" />
@@ -117,6 +122,7 @@
     <Compile Include="Models\DTOS\DashboardDTO.cs" />
     <Compile Include="Models\DTOS\Facultad.cs" />
     <Compile Include="Models\DTOS\ResultadoPreliminar.cs" />
+    <Compile Include="Models\DTOS\Sesion.cs" />
     <Compile Include="Models\SERVICES\CandidataService.cs" />
     <Compile Include="Models\SERVICES\EstudianteService.cs" />
     <Compile Include="Models\SERVICES\VotacionService.cs" />
@@ -128,11 +134,23 @@
     <Compile Include="View\FormCatalogoCandidatas.Designer.cs">
       <DependentUpon>FormCatalogoCandidatas.cs</DependentUpon>
     </Compile>
+    <Compile Include="View\CommentBubble.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="View\CommentBubble.Designer.cs">
+      <DependentUpon>CommentBubble.cs</DependentUpon>
+    </Compile>
     <Compile Include="View\FormDashboard.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="View\FormDashboard.Designer.cs">
       <DependentUpon>FormDashboard.cs</DependentUpon>
+    </Compile>
+    <Compile Include="View\FormDetalleFoto.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="View\FormDetalleFoto.Designer.cs">
+      <DependentUpon>FormDetalleFoto.cs</DependentUpon>
     </Compile>
     <Compile Include="View\FormGestionAlbumes.cs">
       <SubType>Form</SubType>
@@ -145,6 +163,12 @@
     </Compile>
     <Compile Include="View\FormListadoEstudiantes.Designer.cs">
       <DependentUpon>FormListadoEstudiantes.cs</DependentUpon>
+    </Compile>
+    <Compile Include="View\FormLogin.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="View\FormLogin.Designer.cs">
+      <DependentUpon>FormLogin.cs</DependentUpon>
     </Compile>
     <Compile Include="View\FormPerfilCandidata.cs">
       <SubType>Form</SubType>
@@ -191,14 +215,23 @@
     <EmbeddedResource Include="View\FormCatalogoCandidatas.resx">
       <DependentUpon>FormCatalogoCandidatas.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="View\CommentBubble.resx">
+      <DependentUpon>CommentBubble.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="View\FormDashboard.resx">
       <DependentUpon>FormDashboard.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="View\FormDetalleFoto.resx">
+      <DependentUpon>FormDetalleFoto.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="View\FormGestionAlbumes.resx">
       <DependentUpon>FormGestionAlbumes.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="View\FormListadoEstudiantes.resx">
       <DependentUpon>FormListadoEstudiantes.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="View\FormLogin.resx">
+      <DependentUpon>FormLogin.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="View\FormPerfilCandidata.resx">
       <DependentUpon>FormPerfilCandidata.cs</DependentUpon>

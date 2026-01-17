@@ -39,9 +39,9 @@ namespace SIVUG.Models.DAO
                         // 2. INSERTAR ESTUDIANTE (CORREGIDO: Quitamos las columnas de votos)
                         // Ya no guardamos ha_votado_reina ni ha_votado_fotogenia
                         string sqlEstudiante = @"INSERT INTO estudiantes 
-                                       (id_estudiante, matricula, semestre, id_carrera) 
+                                       (id_estudiante, matricula, semestre, id_carrera,ruta_foto_perfil) 
                                        VALUES 
-                                       (@id, @mat, @sem, @idCar)";
+                                       (@id, @mat, @sem, @idCar, @foto)";
 
                         using (var cmd = new MySqlCommand(sqlEstudiante, conexion, transaccion))
                         {
@@ -49,10 +49,9 @@ namespace SIVUG.Models.DAO
                             cmd.Parameters.AddWithValue("@mat", estudiante.Matricula);
                             cmd.Parameters.AddWithValue("@sem", estudiante.Semestre);
                             cmd.Parameters.AddWithValue("@idCar", estudiante.IdCarrera);
+                            cmd.Parameters.AddWithValue("@foto", estudiante.FotoPerfilRuta);
 
-                            // ELIMINAMOS ESTAS LÍNEAS PORQUE YA NO EXISTEN EN BD:
-                            // cmd.Parameters.AddWithValue("@votoR", ...);
-                            // cmd.Parameters.AddWithValue("@votoF", ...);
+                         
 
                             cmd.ExecuteNonQuery();
                         }
@@ -200,5 +199,43 @@ namespace SIVUG.Models.DAO
             }
             return lista;
         }
+
+        public Estudiante Login(string dni, string clave)
+        {
+            using (var conexion = ConexionDB.GetInstance().GetConnection())
+            {
+                conexion.Open();
+                // Hacemos un JOIN para traer los datos de Persona (Nombre) y Estudiante
+                string sql = @"SELECT e.id_estudiante,e.ruta_foto_perfil, e.id_carrera, 
+                              p.nombres, p.apellidos, p.dni AS cedula
+                       FROM estudiantes e
+                       INNER JOIN personas p ON e.id_estudiante = p.id_persona
+                       WHERE p.dni = @dni AND e.clave = @pass";
+
+                using (var cmd = new MySqlCommand(sql, conexion))
+                {
+                    cmd.Parameters.AddWithValue("@dni", dni);
+                    cmd.Parameters.AddWithValue("@pass", clave); // En prod, aquí usarías hash
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            // ¡Encontramos al usuario! Construimos el objeto
+                            return new Estudiante
+                            {
+                                Id = reader.GetInt32("id_estudiante"),
+                                DNI = reader.GetString("cedula"),
+                                Nombres = reader.GetString("nombres"),
+                                Apellidos = reader.GetString("apellidos"),
+                                // Asignar ruta de foto si existe...
+                                FotoPerfilRuta = reader.IsDBNull(reader.GetOrdinal("ruta_foto_perfil")) ? null : reader.GetString("ruta_foto_perfil")
+                            };
+                        }
+                    }
+                }
+            }
+            return null; // Credenciales incorrectas
+        }
     }
-    }
+}
