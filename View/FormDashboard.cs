@@ -184,6 +184,35 @@ namespace SIVUG.View
             };
             this.Controls.Add(panelNav);
 
+            // --- NUEVO CÓDIGO UX: PANEL INFERIOR FIJO ---
+            // Yo creo este panel y lo agrego PRIMERO para que el Dock=Bottom tenga prioridad 
+            // visual sobre el contenido de relleno (el menú).
+            Panel panelLogout = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 60,
+                BackColor = Color.FromArgb(34, 49, 63), // Un tono más oscuro para diferenciarlo
+                Padding = new Padding(10)
+            };
+            panelNav.Controls.Add(panelLogout);
+
+            // Yo diseño el botón de salir con un color rojizo (Alizarin) para indicar 
+            // que es una acción de salida o destructiva, mejorando la UX.
+            Button btnLogout = new Button
+            {
+                Text = "🚪 Cerrar Sesión", // Icono visual para claridad
+                Dock = DockStyle.Fill,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(192, 57, 43), // Rojo elegante
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnLogout.FlatAppearance.BorderSize = 0;
+            btnLogout.Click += BtnLogout_Click; // Asocio mi evento
+            panelLogout.Controls.Add(btnLogout);
+
+
             // 2. Logo y Títulos (Se mantienen fijos arriba)
             Panel panelLogo = new Panel { Dock = DockStyle.Top, Height = 140, BackColor = Color.Transparent };
             panelNav.Controls.Add(panelLogo);
@@ -209,6 +238,31 @@ namespace SIVUG.View
                 TextAlign = ContentAlignment.MiddleCenter
             };
             panelLogo.Controls.Add(lblSubtitulo);
+
+            if (Sesion.EstaLogueado())
+            {
+                Label lblBienvenida = new Label
+                {
+                    Text = $"Hola, {Sesion.UsuarioLogueado.Nombres}", // Usamos el nombre de la sesión
+                    ForeColor = Color.FromArgb(46, 204, 113), // Un verde suave o el color que prefieras
+                    Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                    Location = new Point(10, 115), // Debajo del subtítulo
+                    Size = new Size(230, 25),
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+                panelLogo.Controls.Add(lblBienvenida);
+
+                Label lblRol = new Label
+                {
+                    Text = "• Estudiante •",
+                    ForeColor = Color.Gray,
+                    Font = new Font("Segoe UI", 8F),
+                    Location = new Point(10, 135),
+                    Size = new Size(230, 20),
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+                panelLogo.Controls.Add(lblRol);
+            }
 
             // 3. Contenedor de Menú (FlowLayout hace la magia del acordeón)
             FlowLayoutPanel flowMenu = new FlowLayoutPanel
@@ -258,6 +312,39 @@ namespace SIVUG.View
             // Ahora lo abrimos directo, porque tiene su propio buscador interno
             FormGestionAlbumes formGestor = new FormGestionAlbumes();
             formGestor.ShowDialog();
+        }
+
+        private void BtnLogout_Click(object sender, EventArgs e)
+        {
+            // Yo pregunto amablemente al usuario si está seguro, para evitar clics accidentales.
+            DialogResult confirmacion = MessageBox.Show(
+                "¿Estás seguro de que deseas cerrar tu sesión?",
+                "Cerrar Sesión",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question
+            );
+
+            if (confirmacion == DialogResult.Yes)
+            {
+                // Yo uso try-catch para asegurar que la transición sea limpia
+                try
+                {
+                    // 1. Limpio la sesión global para que nadie más pueda usarla
+                    Sesion.CerrarSesion();
+
+
+
+                    // 3. Cierro este Dashboard y reinicio la app
+                    Application.Restart();
+
+                    // Forzamos el cierre del hilo actual para evitar que siga ejecutando código
+                    Environment.Exit(0);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Ocurrió un error al intentar salir: " + ex.Message);
+                }
+            }
         }
 
         // 1. Crea un botón simple sin submenú

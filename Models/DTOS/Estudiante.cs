@@ -21,6 +21,8 @@ namespace SIVUG.Models
         // Objeto completo para mostrar nombre en la vista
         public Carrera Carrera { get; set; }
 
+        public string FotoPerfilRuta {  get; set; }
+
         //Semestre actual (1-10 típicamente)
         public byte Semestre { get; set; }
        
@@ -103,14 +105,8 @@ namespace SIVUG.Models
        
         public Comentario ComentarFoto(string contenido, Foto foto)
         {
-            return new Comentario
-            {
-                Contenido = contenido,
-                FechaComentario = DateTime.Now,
-                Estudiante = this, // Asocia automáticamente este estudiante como autor
-                FotoComentada = foto
-            
-            };
+            return new Comentario(contenido, this,foto);
+         
         }
 
 

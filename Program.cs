@@ -18,13 +18,10 @@ namespace SIVUG
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Candidata candidata= new Candidata();
-            candidata.id = 1;
-            candidata.DNI = "0969561832";
-            candidata.Nombres = "Lana Rohaes";
+          
 
 
-            Application.Run(new FormDashboard());
+            Application.Run(new FormLogin());
         }
     }
 }
