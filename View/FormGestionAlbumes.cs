@@ -1,11 +1,12 @@
 ﻿using SIVUG.Models;
 using SIVUG.Models.DAO;
+using SIVUG.Models.DTOS;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
-using System.Windows.Forms;
 using System.Linq; // Necesario para el FirstOrDefault
+using System.Windows.Forms;
 
 namespace SIVUG.View
 {
@@ -31,26 +32,51 @@ namespace SIVUG.View
         private Button btnGuardar;
         private Button btnNuevo; // Lo hacemos global para activarlo/desactivarlo
 
+
+        // Bandera de seguridad
+        private bool _esModoAdmin;
+
+
         // Constructor modificado: Acepta null para abrirse directo
-        public FormGestionAlbumes(Candidata candidata = null)
+        public FormGestionAlbumes()
         {
             InitializeComponent();
             _albumDAO = new AlbumDAO();
             _candidataDAO = new CandidataDAO();
-            _candidataActual = candidata;
+
+            // 1. DETERMINAR MODO SEGÚN ROL
+            var rol = Sesion.UsuarioLogueado.RolEstudiante;
+            _esModoAdmin = (rol == Rol.ADMINISTRADOR); // Ajusta a tu Enum
 
             ConfigurarFormulario();
+
+            // 2. LÓGICA DE AUTO-SELECCIÓN
+            if (!_esModoAdmin)
+            {
+                // Si NO es admin (es candidata), buscamos SU perfil automáticamente
+                // NOTA: Requiere que hayas implementado el método del PASO 1
+                _candidataActual = _candidataDAO.ObtenerPorIdUsuario(Sesion.UsuarioLogueado.Id);
+
+                if (_candidataActual == null)
+                {
+                    MessageBox.Show("Error: No se encontró un perfil de candidata asociado a tu usuario.", "Error de Cuenta");
+                    this.Close(); // Cerramos porque no tiene nada que hacer aquí
+                    return;
+                }
+            }
+
+
             InicializarUI();
 
-            // Si ya vino con candidata (desde el perfil), cargamos todo
-            if (_candidataActual != null)
+            // 4. ESTADO INICIAL
+            if (!_esModoAdmin && _candidataActual != null)
             {
-                cboCandidatas.SelectedValue = _candidataActual.CandidataId;
+                // Modo Candidata: Carga directa
                 ActivarGestion();
             }
             else
             {
-                // Si vino vacío (desde el menú), bloqueamos hasta que elija
+                // Modo Admin: Espera selección
                 BloquearGestion();
             }
         }
@@ -60,61 +86,60 @@ namespace SIVUG.View
         private void ConfigurarFormulario()
         {
             this.Size = new Size(1100, 750);
-            this.Text = "Gestión de Álbumes";
+            this.Text = _esModoAdmin ? "Gestión de Álbumes (Administrador)" : "Mi Galería Personal";
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = colorFondo;
         }
 
         private void InicializarUI()
         {
-            // --- 0. PANEL SUPERIOR (BUSCADOR) ---
-            Panel panelTop = new Panel
+            // --- 0. PANEL SUPERIOR (BUSCADOR) - SOLO PARA ADMINS ---
+            if (_esModoAdmin)
             {
-                Dock = DockStyle.Top,
-                Height = 60,
-                BackColor = Color.White,
-                Padding = new Padding(20, 15, 20, 10)
-            };
-            // Línea separadora
-            panelTop.Paint += (s, e) => ControlPaint.DrawBorder(e.Graphics, panelTop.ClientRectangle,
-                                        Color.White, 0, ButtonBorderStyle.None,
-                                        Color.White, 0, ButtonBorderStyle.None,
-                                        Color.White, 0, ButtonBorderStyle.None,
-                                        Color.LightGray, 1, ButtonBorderStyle.Solid);
-            this.Controls.Add(panelTop);
+                Panel panelTop = new Panel
+                {
+                    Dock = DockStyle.Top,
+                    Height = 60,
+                    BackColor = Color.White,
+                    Padding = new Padding(20, 15, 20, 10)
+                };
+                panelTop.Paint += (s, e) => ControlPaint.DrawBorder(e.Graphics, panelTop.ClientRectangle,
+                                            Color.White, 0, ButtonBorderStyle.None,
+                                            Color.White, 0, ButtonBorderStyle.None,
+                                            Color.White, 0, ButtonBorderStyle.None,
+                                            Color.LightGray, 1, ButtonBorderStyle.Solid);
+                this.Controls.Add(panelTop);
 
-            Label lblBuscar = new Label { Text = "Seleccionar Candidata:", AutoSize = true, Location = new Point(20, 20), Font = new Font("Segoe UI", 10, FontStyle.Bold) };
-            panelTop.Controls.Add(lblBuscar);
+                Label lblBuscar = new Label { Text = "Seleccionar Candidata:", AutoSize = true, Location = new Point(20, 20), Font = new Font("Segoe UI", 10, FontStyle.Bold) };
+                panelTop.Controls.Add(lblBuscar);
 
-            cboCandidatas = new ComboBox
-            {
-                Location = new Point(180, 18),
-                Size = new Size(300, 28),
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Font = new Font("Segoe UI", 10)
-            };
-            // Llenamos el combo
-            try
-            {
-                var lista = _candidataDAO.ObtenerActivas(); // Asumiendo que tienes este método
-                cboCandidatas.DataSource = lista;
-                cboCandidatas.DisplayMember = "Nombres"; // O una propiedad compuesta si tienes
-                cboCandidatas.ValueMember = "CandidataId";
-                cboCandidatas.SelectedIndex = -1; // Nada seleccionado al inicio
+                cboCandidatas = new ComboBox
+                {
+                    Location = new Point(180, 18),
+                    Size = new Size(300, 28),
+                    DropDownStyle = ComboBoxStyle.DropDownList,
+                    Font = new Font("Segoe UI", 10)
+                };
+
+                try
+                {
+                    cboCandidatas.DataSource = _candidataDAO.ObtenerActivas();
+                    cboCandidatas.DisplayMember = "Nombres";
+                    cboCandidatas.ValueMember = "CandidataId";
+                    cboCandidatas.SelectedIndex = -1;
+                }
+                catch { }
+
+                cboCandidatas.SelectedIndexChanged += CboCandidatas_SelectedIndexChanged;
+                panelTop.Controls.Add(cboCandidatas);
             }
-            catch { }
 
-            cboCandidatas.SelectedIndexChanged += CboCandidatas_SelectedIndexChanged;
-            panelTop.Controls.Add(cboCandidatas);
-
-
-            // --- CONTENEDOR PRINCIPAL (Para ocultar/mostrar) ---
+            // --- CONTENEDOR PRINCIPAL ---
             panelContenido = new Panel { Dock = DockStyle.Fill, BackColor = colorFondo };
             this.Controls.Add(panelContenido);
-            panelContenido.BringToFront(); // Debajo del panelTop
+            panelContenido.BringToFront();
 
-
-            // --- 1. SIDEBAR (Dentro de panelContenido) ---
+            // --- 1. SIDEBAR ---
             Panel panelLeft = new Panel
             {
                 Dock = DockStyle.Left,
@@ -126,7 +151,7 @@ namespace SIVUG.View
 
             Label lblMisAlbumes = new Label
             {
-                Text = "MIS ÁLBUMES",
+                Text = _esModoAdmin ? "ÁLBUMES DE ELLA" : "MIS ÁLBUMES", // Texto dinámico
                 Font = new Font("Segoe UI", 12, FontStyle.Bold),
                 ForeColor = Color.DimGray,
                 Dock = DockStyle.Top,
@@ -167,7 +192,7 @@ namespace SIVUG.View
             lblMisAlbumes.BringToFront(); btnNuevo.BringToFront(); separador.BringToFront(); listAlbumes.BringToFront();
 
 
-            // --- 2. EDITOR (Dentro de panelContenido) ---
+            // --- 2. EDITOR ---
             Panel panelEditor = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -269,13 +294,16 @@ namespace SIVUG.View
         private void BloquearGestion()
         {
             panelContenido.Enabled = false; // Deshabilita todo el editor
-            this.Text = "Gestión de Álbumes - Seleccione una candidata";
+           
         }
 
         private void ActivarGestion()
         {
             panelContenido.Enabled = true;
-            this.Text = $"Gestión de Álbumes - {_candidataActual.Nombres} {_candidataActual.Apellidos}";
+            // Si es Admin, mostramos a quién estamos editando en el título
+            if (_esModoAdmin)
+                this.Text = $"Gestión - {_candidataActual.Nombres} {_candidataActual.Apellidos}";
+
             CargarListaAlbumes();
             NuevoAlbum();
         }
@@ -286,18 +314,15 @@ namespace SIVUG.View
         {
             _albumEnEdicion = new Album { Candidata = _candidataActual };
             _fotosNuevasTemp = new List<Foto>();
-
             txtTitulo.Text = "";
             txtDescripcion.Text = "";
             flowFotos.Controls.Clear();
 
-            // Fix: Solo limpiar selección si el usuario no hizo clic explícito (para evitar bucles)
             if (listAlbumes.SelectedIndex != -1 && ((Album)listAlbumes.SelectedItem).Id != 0)
                 listAlbumes.ClearSelected();
 
-            Label lblEmpty = new Label { Text = "Álbum nuevo listo para agregar fotos.", AutoSize = false, Size = new Size(400, 50), TextAlign = ContentAlignment.MiddleCenter, ForeColor = Color.Gray, Margin = new Padding(100, 50, 0, 0) };
+            Label lblEmpty = new Label { Text = "Álbum nuevo listo.", AutoSize = false, Size = new Size(400, 50), TextAlign = ContentAlignment.MiddleCenter, ForeColor = Color.Gray, Margin = new Padding(100, 50, 0, 0) };
             flowFotos.Controls.Add(lblEmpty);
-
             btnGuardar.Text = "💾 GUARDAR ÁLBUM";
             btnGuardar.BackColor = Color.FromArgb(46, 204, 113);
         }

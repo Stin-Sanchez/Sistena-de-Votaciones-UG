@@ -206,7 +206,7 @@ namespace SIVUG.Models.DAO
             {
                 conexion.Open();
                 // Hacemos un JOIN para traer los datos de Persona (Nombre) y Estudiante
-                string sql = @"SELECT e.id_estudiante,e.ruta_foto_perfil, e.id_carrera, 
+                string sql = @"SELECT e.id_estudiante,e.ruta_foto_perfil, e.id_carrera, e.rol, 
                               p.nombres, p.apellidos, p.dni AS cedula
                        FROM estudiantes e
                        INNER JOIN personas p ON e.id_estudiante = p.id_persona
@@ -228,6 +228,7 @@ namespace SIVUG.Models.DAO
                                 DNI = reader.GetString("cedula"),
                                 Nombres = reader.GetString("nombres"),
                                 Apellidos = reader.GetString("apellidos"),
+                                RolEstudiante = (Rol)Enum.Parse(typeof(Rol),reader.GetString("rol"),true),
                                 // Asignar ruta de foto si existe...
                                 FotoPerfilRuta = reader.IsDBNull(reader.GetOrdinal("ruta_foto_perfil")) ? null : reader.GetString("ruta_foto_perfil")
                             };

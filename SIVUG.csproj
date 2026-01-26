@@ -114,11 +114,13 @@
     <Compile Include="Models\DAO\AlbunDAO.cs" />
     <Compile Include="Models\DAO\CandidataDAO.cs" />
     <Compile Include="Models\DAO\CarreraDAO.cs" />
+    <Compile Include="Models\DAO\CatalogoDAO.cs" />
     <Compile Include="Models\DAO\ComentarioDao.cs" />
     <Compile Include="Models\DAO\EstudianteDAO.cs" />
     <Compile Include="Models\DAO\FacultadDAO.cs" />
     <Compile Include="Models\DAO\VotoDAO.cs" />
     <Compile Include="Models\DTOS\Carrera.cs" />
+    <Compile Include="Models\DTOS\CatalogoDTO.cs" />
     <Compile Include="Models\DTOS\DashboardDTO.cs" />
     <Compile Include="Models\DTOS\Facultad.cs" />
     <Compile Include="Models\DTOS\ResultadoPreliminar.cs" />

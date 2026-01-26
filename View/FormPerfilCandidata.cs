@@ -187,20 +187,53 @@ namespace SIVUG.View
             panelContenido.Controls.Clear();
             int yPos = 20;
 
-            // --- PARCHE TEMPORAL: SIMULACIÓN DE DATOS ---
-            // Si las listas vienen vacías (porque el DAO no las cargó), ponemos datos falsos
-            // para que veas cómo queda la UI. Cuando arregles el DAO, borra esto.
-            if ((_candidata.Habilidades == null || _candidata.Habilidades.Count == 0))
-            {
-                _candidata.Habilidades = new List<string> { "Liderazgo", "Oratoria", "Danza" };
-                _candidata.Pasatiempos = new List<string> { "Leer", "Viajar", "Fotografía" };
-                _candidata.Aspiraciones = new List<string> { "Ayudar a mi comunidad", "Ser profesional" };
-            }
-            // ---------------------------------------------
+            // 1. CARGA DE DATOS USANDO  DAO EXISTENTE
+            CatalogoDAO catalogoDAO = new CatalogoDAO();
 
-            yPos = AgregarBloqueTags("✨ Habilidades", _candidata.Habilidades, yPos, Color.FromArgb(223, 249, 251), Color.FromArgb(19, 15, 64));
-            yPos = AgregarBloqueTags("🎨 Pasatiempos", _candidata.Pasatiempos, yPos, Color.FromArgb(224, 236, 255), Color.FromArgb(65, 105, 225));
-            yPos = AgregarBloqueTags("🎯 Aspiraciones", _candidata.Aspiraciones, yPos, Color.FromArgb(250, 227, 217), Color.FromArgb(189, 87, 87));
+            // Llamamos al método que devuelve List<CatalogoDTO>
+            List<CatalogoDTO> listaCompleta = catalogoDAO.ObtenerDeCandidata(_candidata.CandidataId);
+
+          
+            // Filtramos la lista única para llenar las propiedades de la candidata
+
+            _candidata.Habilidades = listaCompleta
+                .Where(x => x.Tipo == "HABILIDAD") // Filtramos por el campo 'Tipo'
+                .Select(x => x.Nombre)             // Solo tomamos el texto
+                .ToList();
+
+            _candidata.Pasatiempos = listaCompleta
+                .Where(x => x.Tipo == "PASATIEMPO")
+                .Select(x => x.Nombre)
+                .ToList();
+
+            _candidata.Aspiraciones = listaCompleta
+                .Where(x => x.Tipo == "ASPIRACION")
+                .Select(x => x.Nombre)
+                .ToList();
+
+            // 3. RENDERIZADO VISUAL
+            if (_candidata.Habilidades.Count > 0)
+                yPos = AgregarBloqueTags("✨ Habilidades", _candidata.Habilidades, yPos, Color.FromArgb(223, 249, 251), Color.FromArgb(19, 15, 64));
+
+            if (_candidata.Pasatiempos.Count > 0)
+                yPos = AgregarBloqueTags("🎨 Pasatiempos", _candidata.Pasatiempos, yPos, Color.FromArgb(224, 236, 255), Color.FromArgb(65, 105, 225));
+
+            if (_candidata.Aspiraciones.Count > 0)
+                yPos = AgregarBloqueTags("🎯 Aspiraciones", _candidata.Aspiraciones, yPos, Color.FromArgb(250, 227, 217), Color.FromArgb(189, 87, 87));
+
+            // Mensaje si no hay nada
+            if (yPos == 20)
+            {
+                Label lblVacio = new Label
+                {
+                    Text = "La candidata aún no ha completado su perfil.",
+                    AutoSize = true,
+                    ForeColor = Color.Gray,
+                    Location = new Point(20, 20),
+                    Font = new Font("Segoe UI", 10, FontStyle.Italic)
+                };
+                panelContenido.Controls.Add(lblVacio);
+            }
         }
 
         private int AgregarBloqueTags(string titulo, List<string> items, int top, Color bg, Color text)
