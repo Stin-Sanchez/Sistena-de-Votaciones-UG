@@ -2,7 +2,9 @@
 using SIVUG.Models.DTOS;
 using SIVUG.Util;
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -163,6 +165,43 @@ namespace SIVUG.Models.DAO
                 }
             }
         }
+
+        // En SIVUG.Models.DAO.CandidataDAO
+
+        public Candidata ObtenerPorIdUsuario(int idUsuario)
+        {
+            string query = "SELECT * FROM Candidatas WHERE id_candidata = @idCandidata";
+
+            using (var conn = ConexionDB.GetInstance().GetConnection())
+            {
+
+
+                conn.Open();
+
+                using (var cmd = new MySqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@idCandidata", idUsuario);
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                          
+                            return new Candidata
+                            {
+                                CandidataId = reader.GetInt32(reader.GetOrdinal("id_candidata")),
+                               
+                                
+                            };
+                        }
+
+
+                        return null;
+                    }
+                }
+            }
+        }
+             
 
         public bool ActualizarEstadoCandidato(int candidataId, bool activa)
         {

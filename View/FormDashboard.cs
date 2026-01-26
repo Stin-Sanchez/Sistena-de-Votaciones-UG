@@ -1,4 +1,5 @@
 ﻿using SIVUG.Controllers;
+using SIVUG.Models;
 using SIVUG.Models.DAO;
 using SIVUG.Models.DTOS;
 using System;
@@ -286,16 +287,41 @@ namespace SIVUG.View
             // B. Estudiantes (Botón simple)
             flowMenu.Controls.Add(CrearBotonMenuSimple("👥 Estudiantes", BtnEstudiantes_Click));
 
-            // C. CANDIDATAS (MENÚ DESPLEGABLE)
-            // Aquí definimos las sub-opciones y sus acciones
-            var subMenuCandidatas = new Panel(); // Placeholder variable
-            subMenuCandidatas = CrearGrupoMenu("👤 Candidatas", flowMenu, new List<(string, EventHandler)>
-    {
-        ("📋 Registro / Admin", BtnCandidatas_Click), // Tu form antiguo
-        ("🌟 Catálogo Visual", (s,e) => { new FormCatalogoCandidatas().ShowDialog(); }), // El catálogo nuevo
-        ("📸 Gestión de Álbumes", BtnGestionAlbumes_Click) // Nueva función
-    });
-            flowMenu.Controls.Add(subMenuCandidatas);
+            // C. CANDIDATAS (MENÚ DESPLEGABLE CON SEGURIDAD RBAC)
+            // 1. Preparamos una lista vacía
+            var opcionesCandidatas = new List<(string, EventHandler)>();
+
+            // 2. Obtenemos el rol del usuario actual 
+            // Usamos .ToUpper() para evitar errores si en la BD está como "admin" o "Admin"
+            Rol rolUsuario = Sesion.UsuarioLogueado.RolEstudiante;
+            MessageBox.Show($"El rol detectado es: '{rolUsuario}'");
+
+            // 3. Lógica de Permisos con SWITCH (Más limpio para Enums)
+            switch (rolUsuario)
+            {
+                case Rol.ADMINISTRADOR: // O como se llame en tu Enum
+                    opcionesCandidatas.Add(("📋 Registro / Admin", BtnCandidatas_Click));
+                    opcionesCandidatas.Add(("🌟 Catálogo Visual", (s, e) => { new FormCatalogoCandidatas().ShowDialog(); }));
+                    opcionesCandidatas.Add(("📸 Gestión de Álbumes", BtnGestionAlbumes_Click));
+                    break;
+
+                case Rol.CANDIDATA:
+                    opcionesCandidatas.Add(("🌟 Catálogo Visual", (s, e) => { new FormCatalogoCandidatas().ShowDialog(); }));
+                    opcionesCandidatas.Add(("📸 Gestión de Álbumes", BtnGestionAlbumes_Click));
+                    break;
+
+                case Rol.ESTUDIANTE:
+                default: // Por seguridad, el default actúa como Estudiante
+                    opcionesCandidatas.Add(("🌟 Catálogo Visual", (s, e) => { new FormCatalogoCandidatas().ShowDialog(); }));
+                    break;
+            }
+
+            // 4. Crear menú si corresponde
+            if (opcionesCandidatas.Count > 0)
+            {
+                var subMenuCandidatas = CrearGrupoMenu("👤 Candidatas", flowMenu, opcionesCandidatas);
+                flowMenu.Controls.Add(subMenuCandidatas);
+            }
 
             // D. Votaciones (Botón simple)
             flowMenu.Controls.Add(CrearBotonMenuSimple("🗳️ Votaciones", BtnVotaciones_Click));

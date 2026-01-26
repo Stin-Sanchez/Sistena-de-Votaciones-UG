@@ -411,7 +411,7 @@ namespace SIVUG.View
         private void CargarComboFacultades()
         {
             var lista = _facDAO.ObtenerTodas();
-            lista.Insert(0, new Facultad { Id = 0, Nombre = "-- Todas las Facultades --" });
+            lista.Insert(0, new Facultad { Id = 0, Nombre = "Todas las Facultades" });
 
             cmbFacultad.DataSource = lista;
             cmbFacultad.DisplayMember = "Nombre";
@@ -431,7 +431,7 @@ namespace SIVUG.View
             {
                 lista = _carDAO.ObtenerPorIdFacultad(idFacultad);
             }
-            lista.Insert(0, new Carrera { Id = 0, Nombre = "-- Todas las Carreras --" });
+            lista.Insert(0, new Carrera { Id = 0, Nombre = "Todas las Carreras" });
 
             cmbCarrera.DataSource = lista;
             cmbCarrera.DisplayMember = "Nombre";
