@@ -69,23 +69,19 @@ namespace SIVUG.Models.DAO
             {
                 conexion.Open();
 
-                // Hacemos JOIN con la tabla estudiantes y personas para obtener nombre y foto
-                string sql = @"SELECT 
-                                c.id_comentario, c.contenido, c.fecha_comentario,
-                                e.id_estudiante, e.matricula,e.ruta_foto_perfil,
-                                p.nombres, p.apellidos
-                               FROM comentarios c
-                               INNER JOIN estudiantes e ON c.id_estudiante = e.id_estudiante
-                               INNER JOIN personas p ON e.id_estudiante = p.id_persona
-                               WHERE c.id_foto = @idFoto
-                               ORDER BY c.fecha_comentario ASC";
+        
+                //Storage Procedure que realiza select hacia la base de datos y obtiene los comentarios de una foto junto con los datos del estudiante que hizo el comentario
+                string sp = "sp_obtener_foto_comentarios_estudiante";
 
-                using (var cmd = new MySqlCommand(sql, conexion))
+                using (var cmd = new MySqlCommand(sp, conexion))
                 {
-                    cmd.Parameters.AddWithValue("@idFoto", fotoId);
+                    cmd.CommandType = System.Data.CommandType.StoredProcedure;
+                    //Le pasamos el id de la foto como parametro al Storage Procedure , el nombre del parametro es @p_id_foto en el storage procedure
+                    cmd.Parameters.AddWithValue("@p_id_foto", fotoId);
 
                     using (var reader = cmd.ExecuteReader())
                     {
+                      
                         while (reader.Read())
                         {
                             // 1. Reconstruir Estudiante

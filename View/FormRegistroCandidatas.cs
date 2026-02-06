@@ -8,28 +8,45 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
+using Estudiante = SIVUG.Models.Estudiante;
+
 
 namespace SIVUG.View
 {
+    /// <summary>
+    /// CONTROLADOR DE REGISTRO DE CANDIDATAS.
+    /// 
+    /// MISIÓN: Gestionar el ciclo de vida de las candidatas (Alta/Baja/Modificación).
+    /// 
+    /// CARACTERÍSTICAS CLAVE:
+    /// - Integra búsqueda de estudiantes existentes.
+    /// - Maneja la promoción de "Estudiante" a "Candidata" (Roles).
+    /// - Administra perfiles complejos (Habilidades, Pasatiempos) con relaciones N:M.
+    /// - Implementa validaciones de negocio estrictas (Unicidad, Integridad).
+    /// </summary>
     public partial class FormRegistroCandidatas : Form
     {
-        // Servicios y DAOs
+        // ==================== CAPA DE SERVICIOS Y DATOS ====================
         private EstudianteService estudianteService;
         private CandidataService candidataService;
-        private CandidataDAO candidataDAO; // DAO Directo
-        private CatalogoDAO catalogoDAO;   // Para habilidades
+        private CandidataDAO candidataDAO;
+        private CatalogoDAO catalogoDAO;
         private CarreraDAO carreraDAO;
 
-        // Variables de estado
+        // ==================== ESTADO DE LA VISTA ====================
+        
+        // Estudiante seleccionado temporalmente antes de confirmar el registro.
         private Estudiante estudianteSeleccionado;
+        
+        // Ruta temporal de la imagen seleccionada.
         private string rutaImagenSeleccionada;
 
-        // Listas temporales para el perfil
+        // Listas temporales en memoria para la gestión de Tags (Habilidades, etc.) antes del commit.
         private List<string> _listaHabilidades = new List<string>();
         private List<string> _listaPasatiempos = new List<string>();
         private List<string> _listaAspiraciones = new List<string>();
 
-        // --- CONTROLES UI ---
+        // ==================== REFERENCIAS UI ====================
         private GroupBox grpDatos;
         private GroupBox grpPerfil;
 
@@ -45,17 +62,16 @@ namespace SIVUG.View
         private CheckBox chkReina;
         private CheckBox chkFotogenia;
 
-        // Inputs Perfil
+        // Controles de listas dinámicas
         private ListBox lbHabilidades;
         private ListBox lbPasatiempos;
         private ListBox lbAspiraciones;
-        private ComboBox cboHabilidad;   
-        private ComboBox cboPasatiempo;  
-        private ComboBox cboAspiracion;  
+        private ComboBox cboHabilidad;
+        private ComboBox cboPasatiempo;
+        private ComboBox cboAspiracion;
 
         private Button btnGuardar;
         private Button btnCancelar;
-        private Button btnNuevo;
         private DataGridView dgvCandidatas;
 
         public FormRegistroCandidatas()
@@ -63,35 +79,37 @@ namespace SIVUG.View
             InitializeComponent();
             try
             {
-
-                // Inicialización de lógica
+                // Inicialización de Dependencias
                 estudianteService = new EstudianteService();
-            candidataService = new CandidataService();
-            candidataDAO = new CandidataDAO(); // Instanciamos el DAO
-            catalogoDAO = new CatalogoDAO();
-            carreraDAO = new CarreraDAO();
+                candidataService = new CandidataService();
+                candidataDAO = new CandidataDAO();
+                catalogoDAO = new CatalogoDAO();
+                carreraDAO = new CarreraDAO();
 
-            // PRUEBA: Verificar que el DAO funciona
-            var prueba = catalogoDAO.ObtenerPorTipo("HABILIDAD");
-            System.Diagnostics.Debug.WriteLine($"Prueba DAO: {prueba?.Count ?? 0} habilidades");
-        }
-    catch (Exception ex)
-    {
-        MessageBox.Show($"Error inicializando DAOs:\n{ex.Message}", "Error Fatal", 
-            MessageBoxButtons.OK, MessageBoxIcon.Error);
-    }
+                // Smoke Test de conexión a base de datos.
+                System.Diagnostics.Debug.WriteLine($"Prueba DAO: {catalogoDAO.ObtenerPorTipo("HABILIDAD")?.Count ?? 0} habilidades");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error inicializando DAOs:\n{ex.Message}", "Error Fatal",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
 
             ConfigurarFormulario();
             InicializarComponentes();
+            
+            // Carga inicial de la grilla.
             CargarCandidatasActivas();
         }
 
-        private void FormRegistroCandidatas_Load(object sender, EventArgs e) { }
+        private void FormRegistroCandidatas_Load(object sender, EventArgs e) {  }
+
+        // ==================== CONFIGURACIÓN DEL FORMULARIO ====================
 
         private void ConfigurarFormulario()
         {
             this.Text = "SIVUG - Registro de Candidatas";
-            this.Size = new Size(1150, 850);
+            this.Size = new Size(1150, 900);
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -100,7 +118,7 @@ namespace SIVUG.View
 
         private void InicializarComponentes()
         {
-            // Título
+            // Header
             Label lblTitulo = new Label
             {
                 Text = "REGISTRO DE CANDIDATAS",
@@ -111,7 +129,7 @@ namespace SIVUG.View
             };
             this.Controls.Add(lblTitulo);
 
-            // 1. DATOS BÁSICOS
+            // 1. SECCIÓN: DATOS BÁSICOS
             grpDatos = new GroupBox
             {
                 Text = "Datos Básicos",
@@ -123,12 +141,13 @@ namespace SIVUG.View
             };
             this.Controls.Add(grpDatos);
 
+            // Sub-paneles de la sección de datos
             CrearPanelBusqueda(grpDatos, 20, 30);
             CrearPanelInformacionEstudiante(grpDatos, 20, 100);
             CrearPanelConfiguracion(grpDatos, 20, 240);
             CrearPanelFoto(grpDatos, 750, 30);
 
-            // 2. PERFIL (HABILIDADES)
+            // 2. SECCIÓN: PERFIL DETALLADO
             grpPerfil = new GroupBox
             {
                 Text = "Perfil, Habilidades e Intereses",
@@ -140,34 +159,31 @@ namespace SIVUG.View
             };
             this.Controls.Add(grpPerfil);
 
-            // HABILIDADES
+            // Columnas de gestión de Tags (Habilidades, Pasatiempos, Aspiraciones)
             CrearColumnaPerfil(grpPerfil, "Habilidades", 20,
                 ref cboHabilidad, ref lbHabilidades, _listaHabilidades, "HABILIDAD");
 
-            // PASATIEMPOS
             CrearColumnaPerfil(grpPerfil, "Pasatiempos", 370,
                 ref cboPasatiempo, ref lbPasatiempos, _listaPasatiempos, "PASATIEMPO");
 
-            // ASPIRACIONES
             CrearColumnaPerfil(grpPerfil, "Aspiraciones", 720,
                 ref cboAspiracion, ref lbAspiraciones, _listaAspiraciones, "ASPIRACION");
 
-            // 3. BOTONES
+            // 3. SECCIÓN: ACCIONES (Botones actualizados)
             int btnY = 620;
-            btnGuardar = CrearBotonAccion("💾 Guardar", Color.FromArgb(46, 204, 113), 785, btnY);
-            btnGuardar.Enabled = false;
+            
+            // Botón Guardar - Desplazado un poco a la izquierda
+            btnGuardar = CrearBotonAccion("💾 Guardar", Color.FromArgb(46, 204, 113), 850, btnY);
+            btnGuardar.Enabled = false; // Deshabilitado hasta que se busque un estudiante válido.
             btnGuardar.Click += BtnGuardar_Click;
             this.Controls.Add(btnGuardar);
 
-            btnNuevo = CrearBotonAccion("📄 Nuevo", Color.FromArgb(52, 152, 219), 910, btnY);
-            btnNuevo.Click += BtnNuevo_Click;
-            this.Controls.Add(btnNuevo);
-
-            btnCancelar = CrearBotonAccion("Cancelar", Color.FromArgb(231, 76, 60), 1020, btnY);
+            // Botón Cancelar - Con espacio considerable respescto a Guardar
+            btnCancelar = CrearBotonAccion("Cancelar", Color.FromArgb(231, 76, 60), 990, btnY);
             btnCancelar.Click += (s, e) => this.Close();
             this.Controls.Add(btnCancelar);
 
-            // 4. GRID
+            // 4. SECCIÓN: LISTADO (GRILLA)
             Label lblGrid = new Label
             {
                 Text = "CANDIDATAS REGISTRADAS",
@@ -181,48 +197,56 @@ namespace SIVUG.View
             dgvCandidatas = new DataGridView
             {
                 Location = new Point(25, 690),
-                Size = new Size(1080, 110),
+                Size = new Size(1080, 150),
                 BackgroundColor = Color.White,
                 BorderStyle = BorderStyle.Fixed3D,
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
-                ReadOnly = true,
+                ReadOnly = false,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 RowHeadersVisible = false,
                 Font = new Font("Segoe UI", 9F)
             };
             dgvCandidatas.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(245, 245, 245);
+            dgvCandidatas.CellClick += DgvCandidatas_CellClick;
+            
+            // Ajuste de altura de fila para mejor legibilidad
+            dgvCandidatas.RowsAdded += (s, e) =>
+            {
+                for (int i = e.RowIndex; i < e.RowIndex + e.RowCount; i++)
+                {
+                    dgvCandidatas.Rows[i].Height = 35;
+                }
+            };
             this.Controls.Add(dgvCandidatas);
         }
 
-        // --- BUILDERS UI ---
+        // ==================== CONSTRUCTORES DE PANELES (HELPERS UI) ====================
 
+        /// <summary>
+        /// Componente UI complejo para gestionar listas de strings (Tags).
+        /// Incluye autocompletado y validación de duplicados.
+        /// </summary>
         private void CrearColumnaPerfil(GroupBox padre, string titulo, int x, ref ComboBox cboInput, ref ListBox lbLista, List<string> fuenteDatos, string tipoBD)
         {
-            // 1. Etiqueta
             Label lbl = new Label { Text = titulo, Font = new Font("Segoe UI", 9F, FontStyle.Bold), Location = new Point(x, 25), AutoSize = true };
             padre.Controls.Add(lbl);
 
-            // 2. ComboBox
             ComboBox cbo = new ComboBox
             {
                 Location = new Point(x, 45),
                 Size = new Size(220, 25),
                 Font = new Font("Segoe UI", 10F),
-                DropDownStyle = ComboBoxStyle.DropDown, // Permite escribir nuevos
+                DropDownStyle = ComboBoxStyle.DropDown,
                 AutoCompleteMode = AutoCompleteMode.SuggestAppend,
                 AutoCompleteSource = AutoCompleteSource.ListItems
             };
 
-            // --- AQUÍ LLAMAMOS AL MÉTODO NUEVO ---
             CargarDatosCombo(cbo, tipoBD);
-            // -------------------------------------
-
             padre.Controls.Add(cbo);
-            cboInput = cbo; // Guardamos la referencia
+            cboInput = cbo;
 
-            // 3. Botón Agregar (+)
             Button btnAdd = new Button
             {
                 Text = "+",
@@ -236,13 +260,13 @@ namespace SIVUG.View
             btnAdd.FlatAppearance.BorderSize = 0;
             padre.Controls.Add(btnAdd);
 
-            // 4. ListBox
             ListBox lb = new ListBox { Location = new Point(x, 80), Size = new Size(260, 100), Font = new Font("Segoe UI", 9F), BorderStyle = BorderStyle.FixedSingle };
             padre.Controls.Add(lb);
             lbLista = lb;
 
-            // --- Eventos ---
-            btnAdd.Click += (s, e) => {
+            // Manejador del botón Agregar
+            btnAdd.Click += (s, e) =>
+            {
                 string valor = cbo.Text.Trim();
 
                 if (string.IsNullOrEmpty(valor))
@@ -251,17 +275,18 @@ namespace SIVUG.View
                     return;
                 }
 
+                // Validación de unicidad en la lista visual
                 if (fuenteDatos.Contains(valor, StringComparer.OrdinalIgnoreCase))
                 {
                     MessageBox.Show("Este elemento ya está en la lista", "Duplicado");
                     return;
                 }
 
-                // ✅ Agregar a la lista temporal
+                // Actualizo la lista temporal
                 fuenteDatos.Add(valor);
                 ActualizarListBox(lb, fuenteDatos);
 
-                // ✅ Si es nuevo, agregarlo también al combo para futuros usos
+                // Auto-aprendo nuevos valores en el combo para usabilidad futura en la sesión
                 if (!cbo.Items.Contains(valor))
                 {
                     cbo.Items.Add(valor);
@@ -271,17 +296,30 @@ namespace SIVUG.View
                 cbo.Focus();
             };
 
+            // Accesibilidad: Enter para agregar
             cbo.KeyPress += (s, e) => { if (e.KeyChar == (char)Keys.Enter) { btnAdd.PerformClick(); e.Handled = true; } };
-            lb.DoubleClick += (s, e) => { if (lb.SelectedIndex != -1) { fuenteDatos.RemoveAt(lb.SelectedIndex); ActualizarListBox(lb, fuenteDatos); } };
+            
+            // Usabilidad: Doble clic para eliminar
+            lb.DoubleClick += (s, e) => 
+            { 
+                if (lb.SelectedIndex != -1) 
+                { 
+                    fuenteDatos.RemoveAt(lb.SelectedIndex); 
+                    ActualizarListBox(lb, fuenteDatos); 
+                } 
+            };
         }
 
+        /// <summary>
+        /// Carga los datos del catálogo en el ComboBox.
+        /// Maneja errores de DAO elegantemente.
+        /// </summary>
         private void CargarDatosCombo(ComboBox cbo, string tipo)
         {
             try
             {
                 cbo.Items.Clear();
 
-                // PUNTO DE DEPURACIÓN 1: Verificar que el DAO existe
                 if (catalogoDAO == null)
                 {
                     MessageBox.Show($"Error: CatalogoDAO no está inicializado", "Error",
@@ -289,26 +327,10 @@ namespace SIVUG.View
                     return;
                 }
 
-                // PUNTO DE DEPURACIÓN 2: Verificar consulta
                 var listaItems = catalogoDAO.ObtenerPorTipo(tipo);
 
-                // PUNTO DE DEPURACIÓN 3: Validar resultados
-                if (listaItems == null)
-                {
-                    MessageBox.Show($"Error: No se pudo obtener datos de tipo '{tipo}' (retornó NULL)",
-                        "Error BD", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
+                if (listaItems == null) return;
 
-                if (listaItems.Count == 0)
-                {
-                    // Esto NO es error, solo no hay datos precargados
-                    System.Diagnostics.Debug.WriteLine($"⚠️ No hay registros en BD para tipo: {tipo}");
-                    // El combo queda vacío pero funcional para agregar nuevos
-                    return;
-                }
-
-                // PUNTO DE DEPURACIÓN 4: Cargar datos
                 foreach (var item in listaItems)
                 {
                     if (item != null && !string.IsNullOrEmpty(item.Nombre))
@@ -316,20 +338,18 @@ namespace SIVUG.View
                         cbo.Items.Add(item.Nombre);
                     }
                 }
-
-                System.Diagnostics.Debug.WriteLine($"✅ Cargados {cbo.Items.Count} items en combo {tipo}");
             }
             catch (Exception ex)
             {
-                // MOSTRAR ERROR AL USUARIO, no solo en consola
-                MessageBox.Show($"Error cargando datos de '{tipo}':\n{ex.Message}\n\nStack: {ex.StackTrace}",
-                    "Error Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
-
-                System.Diagnostics.Debug.WriteLine($"❌ ERROR en CargarDatosCombo({tipo}): {ex}");
+                System.Diagnostics.Debug.WriteLine($"ERROR en CargarDatosCombo({tipo}): {ex}");
             }
         }
 
-        private void ActualizarListBox(ListBox lb, List<string> datos) { lb.DataSource = null; lb.DataSource = datos; }
+        private void ActualizarListBox(ListBox lb, List<string> datos)
+        {
+            lb.DataSource = null;
+            lb.DataSource = datos;
+        }
 
         private void CrearPanelBusqueda(GroupBox padre, int x, int y)
         {
@@ -386,7 +406,7 @@ namespace SIVUG.View
             return btn;
         }
 
-        // --- LÓGICA DE NEGOCIO ---
+        // ==================== LÓGICA DE NEGOCIO ====================
 
         private void TxtBuscarCedula_KeyPress(object sender, KeyPressEventArgs e)
         {
@@ -394,20 +414,52 @@ namespace SIVUG.View
             if (e.KeyChar == (char)Keys.Enter) BtnBuscarEstudiante_Click(sender, e);
         }
 
+        /// <summary>
+        /// Búsqueda de Estudiante:
+        /// 1. Busca en BD.
+        /// 2. Valida que exista.
+        /// 3. Regla Crítica: Valida que NO SEA YA CANDIDATA (Unicidad).
+        /// </summary>
         private void BtnBuscarEstudiante_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(txtBuscarCedula.Text)) { MessageBox.Show("Ingrese una cédula"); return; }
+            if (string.IsNullOrWhiteSpace(txtBuscarCedula.Text))
+            {
+                MessageBox.Show("Ingrese una cédula");
+                return;
+            }
+
             try
             {
                 Cursor = Cursors.WaitCursor;
-                estudianteSeleccionado = estudianteService.ValidarEstudiante(txtBuscarCedula.Text);
-                if (estudianteSeleccionado == null) { MessageBox.Show("Estudiante no encontrado"); LimpiarFormulario(); return; }
-                if (candidataService.EsCandidataActiva(estudianteSeleccionado.Id)) { MessageBox.Show("Ya es candidata activa"); return; }
+                
+                estudianteSeleccionado = estudianteService.ObtenerPorCedula(txtBuscarCedula.Text);
+
+                if (estudianteSeleccionado == null)
+                {
+                    MessageBox.Show("Estudiante no encontrado");
+                    LimpiarFormulario();
+                    return;
+                }
+
+                // VALIDACIÓN DE NEGOCIO: Evitar duplicados de candidatas.
+                if (candidataService.EsCandidataActiva(estudianteSeleccionado.Id))
+                {
+                    MessageBox.Show("Ya es candidata activa");
+                    return;
+                }
+
+                // Si todo OK, muestro UI de detalle y habilito guardar.
                 MostrarInformacionEstudiante();
                 btnGuardar.Enabled = true;
             }
-            catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
-            finally { Cursor = Cursors.Default; }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error: " + ex.Message);
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
+            }
         }
 
         private void MostrarInformacionEstudiante()
@@ -421,8 +473,10 @@ namespace SIVUG.View
             {
                 Label l = new Label { Text = label, Font = new Font("Segoe UI", 9F, FontStyle.Bold), Location = new Point(x, y), AutoSize = true };
                 Label v = new Label { Text = val, Font = new Font("Segoe UI", 10F), Location = new Point(x + 70, y - 2), AutoSize = true };
-                panelInfoEstudiante.Controls.Add(l); panelInfoEstudiante.Controls.Add(v);
+                panelInfoEstudiante.Controls.Add(l);
+                panelInfoEstudiante.Controls.Add(v);
             }
+
             AddData("Nombres:", estudianteSeleccionado.Nombres, 20, 35);
             AddData("Apellidos:", estudianteSeleccionado.Apellidos, 20, 60);
             AddData("Cédula:", estudianteSeleccionado.DNI, 20, 85);
@@ -442,34 +496,51 @@ namespace SIVUG.View
             }
         }
 
+        /// <summary>
+        /// PROCESO DE REGISTRO TRANSACCIONAL-LIKE:
+        /// 1. Copia física de la imagen.
+        /// 2. Registro de la Candidata en BD.
+        /// 3. Recuperación del ID generado.
+        /// 4. Vinculación de los detalles del perfil (Habilidades, etc.).
+        /// </summary>
         private void BtnGuardar_Click(object sender, EventArgs e)
         {
             if (estudianteSeleccionado == null) return;
-            if (!chkReina.Checked && !chkFotogenia.Checked) { MessageBox.Show("Seleccione tipo de candidatura."); return; }
+            
+            if (!chkReina.Checked && !chkFotogenia.Checked)
+            {
+                MessageBox.Show("Seleccione tipo de candidatura.");
+                return;
+            }
 
             try
             {
+                // Paso 1: Gestión de Archivo.
                 string rutaDestino = (!string.IsNullOrEmpty(rutaImagenSeleccionada)) ? GuardarImagenCandidato() : null;
+
+                // Paso 2: Construcción del Objeto.
+                TipoVoto tipoVoto = chkReina.Checked ? TipoVoto.Reina : TipoVoto.Fotogenia;
+
                 Candidata candidata = new Candidata
                 {
-                    Nombres = $"{estudianteSeleccionado.Nombres} {estudianteSeleccionado.Apellidos}",
+                    Nombres = estudianteSeleccionado.Nombres,
+                    Apellidos = estudianteSeleccionado.Apellidos,
                     ImagenPrincipal = rutaDestino,
-                    Activa = true
+                    Activa = true,
+                    tipoCandidatura = tipoVoto
                 };
 
-                // 1. Guardar Candidata
+                // Paso 3: Persistencia en BD (Candidata).
                 if (candidataService.RegistrarCandidato(estudianteSeleccionado.Id, candidata))
                 {
-                    // 2. OBTENER ID USANDO TU MÉTODO  EL DAO
-
-
+                    // Paso 4: Recuperación del ID para relaciones.
                     Candidata candidataRecuperada = candidataDAO.ObtenerPorIdUsuario(estudianteSeleccionado.Id);
-                    // Paso B: Verificamos que no sea null y EXTRAEMOS EL ID
+
                     if (candidataRecuperada != null)
                     {
-                        int idReal = candidataRecuperada.CandidataId; // <--- Aquí sacamos el int
+                        // Paso 5: Persistencia de Relaciones (Perfil).
+                        int idReal = estudianteSeleccionado.Id; // Mapping de ID.
 
-                        // Paso C: Guardamos el perfil usando ese ID real
                         catalogoDAO.AsignarDetalles(
                             idReal,
                             _listaHabilidades,
@@ -492,7 +563,6 @@ namespace SIVUG.View
                 MessageBox.Show("Ocurrió un error: " + ex.Message, "Error Crítico");
             }
         }
-        
 
         private string GuardarImagenCandidato()
         {
@@ -500,6 +570,8 @@ namespace SIVUG.View
             {
                 string dir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ImagenesCandidatas");
                 if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                
+                // Nombre único para evitar colisiones.
                 string nombre = $"cand_{estudianteSeleccionado.DNI}_{DateTime.Now.Ticks}{Path.GetExtension(rutaImagenSeleccionada)}";
                 string dest = Path.Combine(dir, nombre);
                 File.Copy(rutaImagenSeleccionada, dest, true);
@@ -508,32 +580,234 @@ namespace SIVUG.View
             catch { return null; }
         }
 
-        private void BtnNuevo_Click(object sender, EventArgs e) { LimpiarFormulario(); txtBuscarCedula.Focus(); }
-
         private void LimpiarFormulario()
         {
             txtBuscarCedula.Text = "";
             estudianteSeleccionado = null;
             rutaImagenSeleccionada = null;
             panelInfoEstudiante.Visible = false;
-            chkReina.Checked = false; chkFotogenia.Checked = false;
+            chkReina.Checked = false;
+            chkFotogenia.Checked = false;
             picFotoCandidato.Image = null;
             btnGuardar.Enabled = false;
 
-            _listaHabilidades.Clear(); ActualizarListBox(lbHabilidades, _listaHabilidades);
-            _listaPasatiempos.Clear(); ActualizarListBox(lbPasatiempos, _listaPasatiempos);
-            _listaAspiraciones.Clear(); ActualizarListBox(lbAspiraciones, _listaAspiraciones);
+            _listaHabilidades.Clear();
+            ActualizarListBox(lbHabilidades, _listaHabilidades);
+            _listaPasatiempos.Clear();
+            ActualizarListBox(lbPasatiempos, _listaPasatiempos);
+            _listaAspiraciones.Clear();
+            ActualizarListBox(lbAspiraciones, _listaAspiraciones);
         }
+
+        // ==================== MÉTODOS DEL DATAGRIDVIEW RECARGADO ====================
 
         private void CargarCandidatasActivas()
         {
             try
             {
                 var lista = candidataService.ObtenerCandidatasActivas();
-                var visual = lista.Select(x => new { Nombre = x.Nombres, Facultad = x.Carrera.Facultad.Nombre, Carrera = x.Carrera.Nombre, Estado = x.Activa ? "Activa" : "Inactiva" }).ToList();
-                dgvCandidatas.DataSource = visual;
+
+                dgvCandidatas.Columns.Clear();
+
+                dgvCandidatas.Columns.Add("Candidata", "Candidata");
+                dgvCandidatas.Columns.Add("Facultad", "Facultad");
+                dgvCandidatas.Columns.Add("Carrera", "Carrera");
+                dgvCandidatas.Columns.Add("TipoCandidatura", "Tipo");
+                dgvCandidatas.Columns.Add("Estado", "Estado");
+
+                // Columna de botones de acción.
+                DataGridViewButtonColumn btnAcciones = new DataGridViewButtonColumn
+                {
+                    Name = "Acciones",
+                    Text = "Acciones",
+                    UseColumnTextForButtonValue = false,
+                    Width = 100
+                };
+                dgvCandidatas.Columns.Add(btnAcciones);
+
+                foreach (var candidata in lista)
+                {
+                    string tipoVoto = candidataService.ObtenerDescripcionTipoVoto(candidata.tipoCandidatura);
+                    string estado = candidata.Activa ? "Activa" : "Inactiva";
+
+                    int rowIndex = dgvCandidatas.Rows.Add();
+                    dgvCandidatas.Rows[rowIndex].Cells["Candidata"].Value = candidata.GetNombreCompleto();
+                    dgvCandidatas.Rows[rowIndex].Cells["Facultad"].Value = candidata.Carrera?.Facultad?.Nombre ?? "N/A";
+                    dgvCandidatas.Rows[rowIndex].Cells["Carrera"].Value = candidata.Carrera?.Nombre ?? "N/A";
+                    dgvCandidatas.Rows[rowIndex].Cells["TipoCandidatura"].Value = tipoVoto;
+                    dgvCandidatas.Rows[rowIndex].Cells["Estado"].Value = estado;
+
+                    DataGridViewButtonCell btnCell = (DataGridViewButtonCell)dgvCandidatas.Rows[rowIndex].Cells["Acciones"];
+                    btnCell.Value = "⋮"; // Icono de menú.
+
+                    // Guardo el ID en el tag para recuperarlo luego.
+                    dgvCandidatas.Rows[rowIndex].Tag = candidata.CandidataId;
+
+                    dgvCandidatas.Rows[rowIndex].Height = 35;
+                }
+
+                dgvCandidatas.AutoResizeColumns(DataGridViewAutoSizeColumnsMode.AllCellsExceptHeader);
+                dgvCandidatas.Columns["Acciones"].Width = 60;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error al cargar candidatas: {ex.Message}");
+            }
+        }
+
+        private void DgvCandidatas_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.ColumnIndex != dgvCandidatas.Columns["Acciones"].Index || e.RowIndex < 0)
+                return;
+
+            try
+            {
+                int candidataId = (int)dgvCandidatas.Rows[e.RowIndex].Tag;
+
+                // Menú Contextual para las acciones.
+                ContextMenuStrip menu = new ContextMenuStrip();
+
+                ToolStripMenuItem itemVer = new ToolStripMenuItem("👁️ Ver Detalles", null, (s, evt) => VerCandidataDetalles(candidataId));
+                ToolStripMenuItem itemEditar = new ToolStripMenuItem("✏️ Editar", null, (s, evt) => EditarCandidata(candidataId));
+                ToolStripMenuItem itemEliminar = new ToolStripMenuItem("❌ Eliminar", null, (s, evt) => EliminarCandidata(candidataId));
+
+                menu.Items.Add(itemVer);
+                menu.Items.Add(itemEditar);
+                menu.Items.Add(new ToolStripSeparator());
+                menu.Items.Add(itemEliminar);
+
+                menu.Show(dgvCandidatas, dgvCandidatas.GetCellDisplayRectangle(e.ColumnIndex, e.RowIndex, false).Location);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al procesar acción: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void VerCandidataDetalles(int candidataId)
+        {
+            try
+            {
+                Candidata candidata = candidataService.ObtenerCandidataPorId(candidataId);
+
+                if (candidata == null)
+                {
+                    MessageBox.Show("No se encontró la candidata", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Carga Lazy de detalles.
+                var detallesCatalogo = catalogoDAO.ObtenerDeCandidata(candidataId);
+                
+                if (detallesCatalogo != null && detallesCatalogo.Count > 0)
+                {
+                    // Lógica de mapeo: Catálogo DTO -> Listas POCO.
+                    candidata.Habilidades = detallesCatalogo?
+                        .Where(d => d.Tipo == "HABILIDAD")
+                        .Select(d => d.Nombre)
+                        .ToList() ?? new List<string>();
+
+                    candidata.Pasatiempos = detallesCatalogo?
+                        .Where(d => d.Tipo == "PASATIEMPO")
+                        .Select(d => d.Nombre)
+                        .ToList() ?? new List<string>();
+
+                    candidata.Aspiraciones = detallesCatalogo?
+                        .Where(d => d.Tipo == "ASPIRACION")
+                        .Select(d => d.Nombre)
+                        .ToList() ?? new List<string>();
+                }
+
+                FormVisualizarCandidata formVisualizar = new FormVisualizarCandidata(candidata);
+                formVisualizar.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al obtener detalles:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void EditarCandidata(int candidataId)
+        {
+            try
+            {
+                Candidata candidata = candidataService.ObtenerCandidataPorId(candidataId);
+
+                if (candidata == null)
+                {
+                    MessageBox.Show("No se encontró la candidata", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Carga completa del grafo de objetos antes de editar.
+                var detallesCatalogo = catalogoDAO.ObtenerDeCandidata(candidataId);
+                if (detallesCatalogo != null && detallesCatalogo.Count > 0)
+                {
+                    candidata.Habilidades = detallesCatalogo?
+                        .Where(d => d.Tipo == "HABILIDAD")
+                        .Select(d => d.Nombre)
+                        .ToList() ?? new List<string>();
+
+                    candidata.Pasatiempos = detallesCatalogo?
+                        .Where(d => d.Tipo == "PASATIEMPO")
+                        .Select(d => d.Nombre)
+                        .ToList() ?? new List<string>();
+
+                    candidata.Aspiraciones = detallesCatalogo?
+                        .Where(d => d.Tipo == "ASPIRACION")
+                        .Select(d => d.Nombre)
+                        .ToList() ?? new List<string>();
+                }
+
+                FormEditarCandidata formEditar = new FormEditarCandidata(candidata);
+                if (formEditar.ShowDialog() == DialogResult.OK)
+                {
+                    CargarCandidatasActivas();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al editar candidata: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void EliminarCandidata(int candidataId)
+        {
+            try
+            {
+                Candidata candidata = candidataService.ObtenerCandidataPorId(candidataId);
+
+                if (candidata == null)
+                {
+                    MessageBox.Show("No se encontró la candidata", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                DialogResult resultado = MessageBox.Show(
+                    $"¿Está seguro de que desea eliminar a {candidata.Nombres} {candidata.Apellidos}?\n\nEsta acción no se puede deshacer.",
+                    "Confirmar Eliminación",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning
+                );
+
+                if (resultado == DialogResult.Yes)
+                {
+                    // Soft Delete: Solo marco Activa = false.
+                    if (candidataService.ActualizarEstadoCandidata(candidataId, false))
+                    {
+                        MessageBox.Show("Candidata eliminada correctamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        CargarCandidatasActivas();
+                    }
+                    else
+                    {
+                        MessageBox.Show("No se pudo eliminar la candidata.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al eliminar candidata: {ex.Message}", "Error Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }

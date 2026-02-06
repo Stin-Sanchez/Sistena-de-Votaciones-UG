@@ -60,8 +60,8 @@
     <Reference Include="Microsoft.Extensions.Logging.Abstractions, Version=8.0.0.2, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
       <HintPath>packages\Microsoft.Extensions.Logging.Abstractions.8.0.2\lib\net462\Microsoft.Extensions.Logging.Abstractions.dll</HintPath>
     </Reference>
-    <Reference Include="MySql.Data, Version=9.5.0.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d, processorArchitecture=MSIL">
-      <HintPath>packages\MySql.Data.9.5.0\lib\net462\MySql.Data.dll</HintPath>
+    <Reference Include="MySql.Data, Version=9.6.0.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d, processorArchitecture=MSIL">
+      <HintPath>..\packages\MySql.Data.9.6.0\lib\net462\MySql.Data.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Buffers, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
@@ -118,18 +118,32 @@
     <Compile Include="Models\DAO\ComentarioDao.cs" />
     <Compile Include="Models\DAO\EstudianteDAO.cs" />
     <Compile Include="Models\DAO\FacultadDAO.cs" />
+    <Compile Include="Models\DAO\RolDAO.cs" />
+    <Compile Include="Models\DAO\UsuarioDAO.cs" />
     <Compile Include="Models\DAO\VotoDAO.cs" />
     <Compile Include="Models\DTOS\Carrera.cs" />
     <Compile Include="Models\DTOS\CatalogoDTO.cs" />
     <Compile Include="Models\DTOS\DashboardDTO.cs" />
+    <Compile Include="Models\DTOS\Estudiante.cs" />
     <Compile Include="Models\DTOS\Facultad.cs" />
+    <Compile Include="Models\DTOS\Persona.cs" />
     <Compile Include="Models\DTOS\ResultadoPreliminar.cs" />
+    <Compile Include="Models\DTOS\Rol.cs" />
     <Compile Include="Models\DTOS\Sesion.cs" />
+    <Compile Include="Models\DTOS\Usuario.cs" />
     <Compile Include="Models\SERVICES\CandidataService.cs" />
     <Compile Include="Models\SERVICES\EstudianteService.cs" />
+    <Compile Include="Models\SERVICES\RolService.cs" />
+    <Compile Include="Models\SERVICES\UsuarioService.cs" />
     <Compile Include="Models\SERVICES\VotacionService.cs" />
     <Compile Include="Util\ConexionDB.cs" />
     <Compile Include="Util\Credenciales.cs" />
+    <Compile Include="View\FormCambiarContraseña.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="View\FormCambiarContraseña.Designer.cs">
+      <DependentUpon>FormCambiarContraseña.cs</DependentUpon>
+    </Compile>
     <Compile Include="View\FormCatalogoCandidatas.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -153,6 +167,12 @@
     </Compile>
     <Compile Include="View\FormDetalleFoto.Designer.cs">
       <DependentUpon>FormDetalleFoto.cs</DependentUpon>
+    </Compile>
+    <Compile Include="View\FormEditarCandidata.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="View\FormEditarCandidata.Designer.cs">
+      <DependentUpon>FormEditarCandidata.cs</DependentUpon>
     </Compile>
     <Compile Include="View\FormGestionAlbumes.cs">
       <SubType>Form</SubType>
@@ -187,9 +207,7 @@
     <Compile Include="Models\DTOS\Album.cs" />
     <Compile Include="Models\DTOS\Candidata.cs" />
     <Compile Include="Models\DTOS\Comentario.cs" />
-    <Compile Include="Models\DTOS\Estudiante.cs" />
     <Compile Include="Models\DTOS\Foto.cs" />
-    <Compile Include="Models\DTOS\Persona.cs" />
     <Compile Include="Models\DTOS\Voto.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -205,6 +223,12 @@
     <Compile Include="View\FormRegistroVotos.Designer.cs">
       <DependentUpon>FormRegistroVotos.cs</DependentUpon>
     </Compile>
+    <Compile Include="View\FormVisualizarCandidata.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="View\FormVisualizarCandidata.Designer.cs">
+      <DependentUpon>FormVisualizarCandidata.cs</DependentUpon>
+    </Compile>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
@@ -213,7 +237,11 @@
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
     </Compile>
+    <EmbeddedResource Include="View\FormCambiarContraseña.resx">
+      <DependentUpon>FormCambiarContraseña.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="View\FormCatalogoCandidatas.resx">
       <DependentUpon>FormCatalogoCandidatas.cs</DependentUpon>
     </EmbeddedResource>
@@ -225,6 +253,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="View\FormDetalleFoto.resx">
       <DependentUpon>FormDetalleFoto.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="View\FormEditarCandidata.resx">
+      <DependentUpon>FormEditarCandidata.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="View\FormGestionAlbumes.resx">
       <DependentUpon>FormGestionAlbumes.cs</DependentUpon>
@@ -247,6 +278,9 @@
     <EmbeddedResource Include="View\FormRegistroVotos.resx">
       <DependentUpon>FormRegistroVotos.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="View\FormVisualizarCandidata.resx">
+      <DependentUpon>FormVisualizarCandidata.cs</DependentUpon>
+    </EmbeddedResource>
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
@@ -262,6 +296,5 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
-  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -5,87 +5,102 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
-using System.Linq; // Necesario para el FirstOrDefault
+using System.Linq; 
 using System.Windows.Forms;
 
 namespace SIVUG.View
 {
+    /// <summary>
+    /// CONTROLADOR DE VISTA DE GESTIÓN DE CONTENIDO.
+    /// Permite crear álbumes y subir fotos. 
+    /// Implementa lógica de seguridad dual:
+    /// - Admin: Puede editar el álbum de CUALQUIER candidata (seleccionándola de un combo).
+    /// - Candidata: Solo puede editar SU PROPIO álbum (auto-selección).
+    /// </summary>
     public partial class FormGestionAlbumes : Form
     {
+        // Contexto de trabajo: Quién es la dueña del álbum actual.
         private Candidata _candidataActual;
+        
+        // DAOs para persistencia.
         private AlbumDAO _albumDAO;
-        private CandidataDAO _candidataDAO; // Para llenar el combo
+        private CandidataDAO _candidataDAO; 
+        
+        // Estado temporal de edición (Transaction-like behavior en memoria).
         private Album _albumEnEdicion;
         private List<Foto> _fotosNuevasTemp;
 
-        // UI Colors
+        // Estilos visuales consistentes.
         private Color colorPrimario = Color.FromArgb(255, 105, 180);
         private Color colorFondo = Color.FromArgb(245, 246, 250);
 
-        // Controls
-        private ComboBox cboCandidatas; // El nuevo buscador
-        private Panel panelContenido;   // Contenedor para bloquear/desbloquear
+        // Referencias a controles de UI.
+        private ComboBox cboCandidatas; // Selector exclusivo para Admin.
+        private Panel panelContenido;   // Contenedor 'Main' para habilitar/deshabilitar.
         private ListBox listAlbumes;
         private TextBox txtTitulo;
         private TextBox txtDescripcion;
         private FlowLayoutPanel flowFotos;
         private Button btnGuardar;
-        private Button btnNuevo; // Lo hacemos global para activarlo/desactivarlo
+        private Button btnNuevo; 
 
-
-        // Bandera de seguridad
+        // Bandera de seguridad (Role-Based Flag).
         private bool _esModoAdmin;
 
-
-        // Constructor modificado: Acepta null para abrirse directo
+        /// <summary>
+        /// Constructor inteligente: 
+        /// Detecta automáticamente el rol del usuario y ajusta la interfaz.
+        /// Si es candidata, intenta auto-vincular su perfil. Si falla, bloquea el acceso.
+        /// </summary>
         public FormGestionAlbumes()
         {
             InitializeComponent();
             _albumDAO = new AlbumDAO();
             _candidataDAO = new CandidataDAO();
 
-            // 1. DETERMINAR MODO SEGÚN ROL
-            var rol = Sesion.UsuarioLogueado.RolEstudiante;
-            _esModoAdmin = (rol == Rol.ADMINISTRADOR); // Ajusta a tu Enum
+            // 1. DETERMINACIÓN DEL ROL
+            var rol = Sesion.UsuarioActual.Rol.Nombre;
+            _esModoAdmin = (rol == "Administrador"); 
 
             ConfigurarFormulario();
 
-            // 2. LÓGICA DE AUTO-SELECCIÓN
+            // 2. LÓGICA DE AUTO- VINCULACIÓN (Solo Candidatas)
             if (!_esModoAdmin)
             {
-                // Si NO es admin (es candidata), buscamos SU perfil automáticamente
-                // NOTA: Requiere que hayas implementado el método del PASO 1
-                _candidataActual = _candidataDAO.ObtenerPorIdUsuario(Sesion.UsuarioLogueado.Id);
+                // Busco el perfil de candidata asociado al usuario logueado.
+                _candidataActual = _candidataDAO.ObtenerPorIdUsuario(Sesion.UsuarioActual.IdUsuario);
 
                 if (_candidataActual == null)
                 {
+                    // Fallo crítico de integridad de datos: Usuario "Estudiante" sin perfil "Candidata".
                     MessageBox.Show("Error: No se encontró un perfil de candidata asociado a tu usuario.", "Error de Cuenta");
-                    this.Close(); // Cerramos porque no tiene nada que hacer aquí
+                    this.Close(); // Cierre de seguridad.
                     return;
                 }
             }
 
-
+            // 3. Construcción de UI adaptativa.
             InicializarUI();
 
-            // 4. ESTADO INICIAL
+            // 4. CONFIGURACIÓN DEL ESTADO INICIAL
             if (!_esModoAdmin && _candidataActual != null)
             {
-                // Modo Candidata: Carga directa
+                // Modo Autogestión: Todo listo para usar.
                 ActivarGestion();
             }
             else
             {
-                // Modo Admin: Espera selección
+                // Modo Admin: Bloqueo inputs hasta que seleccione a alguien.
                 BloquearGestion();
             }
         }
 
-        private void FormGestionAlbumes_Load(object sender, EventArgs e) { }
+        private void FormGestionAlbumes_Load(object sender, EventArgs e) {}
 
         private void ConfigurarFormulario()
         {
             this.Size = new Size(1100, 750);
+            // Título contextual para mejor UX.
             this.Text = _esModoAdmin ? "Gestión de Álbumes (Administrador)" : "Mi Galería Personal";
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = colorFondo;
@@ -93,7 +108,7 @@ namespace SIVUG.View
 
         private void InicializarUI()
         {
-            // --- 0. PANEL SUPERIOR (BUSCADOR) - SOLO PARA ADMINS ---
+            // --- 0. HEADER DE SELECCIÓN (SOLO ADMIN) ---
             if (_esModoAdmin)
             {
                 Panel panelTop = new Panel
@@ -103,6 +118,7 @@ namespace SIVUG.View
                     BackColor = Color.White,
                     Padding = new Padding(20, 15, 20, 10)
                 };
+                // Borde inferior sutil.
                 panelTop.Paint += (s, e) => ControlPaint.DrawBorder(e.Graphics, panelTop.ClientRectangle,
                                             Color.White, 0, ButtonBorderStyle.None,
                                             Color.White, 0, ButtonBorderStyle.None,
@@ -123,10 +139,11 @@ namespace SIVUG.View
 
                 try
                 {
+                    // Lleno el combo solo con candidatas activas para evitar basura.
                     cboCandidatas.DataSource = _candidataDAO.ObtenerActivas();
                     cboCandidatas.DisplayMember = "Nombres";
                     cboCandidatas.ValueMember = "CandidataId";
-                    cboCandidatas.SelectedIndex = -1;
+                    cboCandidatas.SelectedIndex = -1; // Nada seleccionado al inicio.
                 }
                 catch { }
 
@@ -134,12 +151,12 @@ namespace SIVUG.View
                 panelTop.Controls.Add(cboCandidatas);
             }
 
-            // --- CONTENEDOR PRINCIPAL ---
+            // --- CONTENEDOR PRINCIPAL (MASTER-DETAIL) ---
             panelContenido = new Panel { Dock = DockStyle.Fill, BackColor = colorFondo };
             this.Controls.Add(panelContenido);
             panelContenido.BringToFront();
 
-            // --- 1. SIDEBAR ---
+            // --- 1. SIDEBAR (LISTA DE ÁLBUMES) ---
             Panel panelLeft = new Panel
             {
                 Dock = DockStyle.Left,
@@ -151,7 +168,7 @@ namespace SIVUG.View
 
             Label lblMisAlbumes = new Label
             {
-                Text = _esModoAdmin ? "ÁLBUMES DE ELLA" : "MIS ÁLBUMES", // Texto dinámico
+                Text = _esModoAdmin ? "ÁLBUMES DE ELLA" : "MIS ÁLBUMES", // Texto adaptativo.
                 Font = new Font("Segoe UI", 12, FontStyle.Bold),
                 ForeColor = Color.DimGray,
                 Dock = DockStyle.Top,
@@ -183,16 +200,19 @@ namespace SIVUG.View
             };
             listAlbumes.SelectedIndexChanged += ListAlbumes_SelectedIndexChanged;
 
+            // Espaciadores para diseño limpio.
             Panel separador = new Panel { Height = 20, Dock = DockStyle.Top, BackColor = Color.White };
 
             panelLeft.Controls.Add(listAlbumes);
             panelLeft.Controls.Add(separador);
             panelLeft.Controls.Add(btnNuevo);
             panelLeft.Controls.Add(lblMisAlbumes);
+            
+            // Z-Order Fix: Aseguro que los controles se apilen en el orden correcto.
             lblMisAlbumes.BringToFront(); btnNuevo.BringToFront(); separador.BringToFront(); listAlbumes.BringToFront();
 
 
-            // --- 2. EDITOR ---
+            // --- 2. EDITOR (DETALLE DEL ÁLBUM) ---
             Panel panelEditor = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -202,7 +222,7 @@ namespace SIVUG.View
             panelContenido.Controls.Add(panelEditor);
             panelEditor.BringToFront();
 
-            // Panel Inputs
+            // Panel de Inputs (Metadatos)
             Panel panelInputs = new Panel { Dock = DockStyle.Top, Height = 220, BackColor = Color.Transparent };
             panelEditor.Controls.Add(panelInputs);
 
@@ -248,7 +268,7 @@ namespace SIVUG.View
             btnAddFoto.Click += BtnAddFoto_Click;
             panelInputs.Controls.Add(btnAddFoto);
 
-            // Panel Botón Guardar
+            // Panel Inferior (Botón Guardar)
             Panel panelBottom = new Panel { Dock = DockStyle.Bottom, Height = 60, BackColor = Color.Transparent };
             panelEditor.Controls.Add(panelBottom);
 
@@ -268,7 +288,7 @@ namespace SIVUG.View
             btnGuardar.Click += BtnGuardar_Click;
             panelBottom.Controls.Add(btnGuardar);
 
-            // Flow Fotos
+            // Grid de Fotos (Preview)
             flowFotos = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -291,29 +311,40 @@ namespace SIVUG.View
             }
         }
 
+        /// <summary>
+        /// Deshabilita toda la interfaz de edición.
+        /// Se usa cuando un admin entra pero aún no ha seleccionado a nadie.
+        /// </summary>
         private void BloquearGestion()
         {
-            panelContenido.Enabled = false; // Deshabilita todo el editor
-           
+            panelContenido.Enabled = false; 
         }
 
+        /// <summary>
+        /// Habilita la interfaz y carga los datos de la candidata actual.
+        /// </summary>
         private void ActivarGestion()
         {
             panelContenido.Enabled = true;
-            // Si es Admin, mostramos a quién estamos editando en el título
+            // Feedback visual: Muestro el nombre en el título.
             if (_esModoAdmin)
                 this.Text = $"Gestión - {_candidataActual.Nombres} {_candidataActual.Apellidos}";
 
             CargarListaAlbumes();
-            NuevoAlbum();
+            NuevoAlbum(); // Prepara el formulario para una inserción limpia.
         }
 
-        // --- LÓGICA DE NEGOCIO (Igual que antes) ---
+        // --- LÓGICA DE NEGOCIO ---
 
+        /// <summary>
+        /// Limpia el formulario y prepara el estado para crear un nuevo registro.
+        /// </summary>
         private void NuevoAlbum()
         {
             _albumEnEdicion = new Album { Candidata = _candidataActual };
             _fotosNuevasTemp = new List<Foto>();
+            
+            // Reset de controles UI.
             txtTitulo.Text = "";
             txtDescripcion.Text = "";
             flowFotos.Controls.Clear();
@@ -321,8 +352,11 @@ namespace SIVUG.View
             if (listAlbumes.SelectedIndex != -1 && ((Album)listAlbumes.SelectedItem).Id != 0)
                 listAlbumes.ClearSelected();
 
+            // Mensaje de estado.
             Label lblEmpty = new Label { Text = "Álbum nuevo listo.", AutoSize = false, Size = new Size(400, 50), TextAlign = ContentAlignment.MiddleCenter, ForeColor = Color.Gray, Margin = new Padding(100, 50, 0, 0) };
             flowFotos.Controls.Add(lblEmpty);
+            
+            // Restauro estilo de botón Guardar.
             btnGuardar.Text = "💾 GUARDAR ÁLBUM";
             btnGuardar.BackColor = Color.FromArgb(46, 204, 113);
         }
@@ -333,7 +367,7 @@ namespace SIVUG.View
             try
             {
                 var albumes = _albumDAO.ObtenerPorCandidata(_candidataActual.CandidataId);
-                // Agregamos opción ficticia para "Nuevo"
+                // INYECCIÓN: Opción ficticia para volver al modo "Crear".
                 albumes.Insert(0, new Album { Id = 0, Titulo = "< CREAR NUEVO ÁLBUM >", Candidata = _candidataActual });
 
                 listAlbumes.DataSource = null;
@@ -349,14 +383,16 @@ namespace SIVUG.View
             if (listAlbumes.SelectedItem == null) return;
             Album albumSeleccionado = (Album)listAlbumes.SelectedItem;
 
+            // Si selecciona "Crear Nuevo", reseteo.
             if (albumSeleccionado.Id == 0)
             {
                 NuevoAlbum();
                 return;
             }
 
+            // Si selecciona uno existente, cargo datos.
             _albumEnEdicion = albumSeleccionado;
-            _fotosNuevasTemp = new List<Foto>();
+            _fotosNuevasTemp = new List<Foto>(); // Reinicio lista temporal de uploads.
 
             txtTitulo.Text = _albumEnEdicion.Titulo;
             txtDescripcion.Text = _albumEnEdicion.Descripcion;
@@ -365,6 +401,7 @@ namespace SIVUG.View
 
             try
             {
+                // Carga de fotos existentes.
                 List<Foto> fotosDelAlbum = _albumDAO.ObtenerFotosPorAlbum(_albumEnEdicion.Id);
                 if (fotosDelAlbum.Count > 0)
                 {
@@ -378,37 +415,50 @@ namespace SIVUG.View
             }
             catch { }
 
+            // Cambio visual para indicar "Edición" en vez de "Creación".
             btnGuardar.Text = "💾 ACTUALIZAR ÁLBUM";
             btnGuardar.BackColor = Color.Orange;
         }
 
+        /// <summary>
+        /// Manejo de selección múltiple de archivos.
+        /// </summary>
         private void BtnAddFoto_Click(object sender, EventArgs e)
         {
             using (OpenFileDialog ofd = new OpenFileDialog())
             {
-                ofd.Multiselect = true;
+                ofd.Multiselect = true; // Fundamental para cargar en lote.
                 ofd.Filter = "Imágenes|*.jpg;*.jpeg;*.png;*.bmp";
 
                 if (ofd.ShowDialog() == DialogResult.OK)
                 {
+                    // Limpio el mensaje de "Sin fotos" si existe.
                     if (_fotosNuevasTemp.Count == 0 && flowFotos.Controls.Count > 0 && flowFotos.Controls[0] is Label)
                         flowFotos.Controls.Clear();
 
                     foreach (string archivo in ofd.FileNames)
                     {
+                        // Agrego a la lista TEMPORAL. Aún no se copia el archivo físico.
                         Foto nuevaFoto = _albumEnEdicion.AgregarFoto(archivo, "");
                         _fotosNuevasTemp.Add(nuevaFoto);
+                        
+                        // Muestro preview visual.
                         AgregarMiniaturaVisual(nuevaFoto, true);
                     }
                 }
             }
         }
 
+        /// <summary>
+        /// Crea un componente visual miniatura para la foto.
+        /// Distingue entre fotos ya guardadas (Verdes) y pendientes (Naranjas).
+        /// </summary>
         private void AgregarMiniaturaVisual(Foto foto, bool esNueva)
         {
             Panel cardFoto = new Panel { Size = new Size(120, 150), Margin = new Padding(10), BackColor = Color.WhiteSmoke };
             PictureBox pic = new PictureBox { Size = new Size(100, 100), Location = new Point(10, 10), SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.Gainsboro };
 
+            // Carga segura sin bloqueos de archivo.
             if (File.Exists(foto.RutaArchivo))
             {
                 try { using (var fs = new FileStream(foto.RutaArchivo, FileMode.Open, FileAccess.Read)) { pic.Image = Image.FromStream(fs); } } catch { }
@@ -432,20 +482,28 @@ namespace SIVUG.View
 
             try
             {
+                // LÓGICA DE PERSISTENCIA FÍSICA:
+                // Solo si hay fotos nuevas, las copio a la carpeta del sistema.
                 if (_fotosNuevasTemp != null && _fotosNuevasTemp.Count > 0)
                 {
+                    // Creo una carpeta única por candidata para mantener orden.
                     string carpetaDestino = Path.Combine(Application.StartupPath, "Albumes", _candidataActual.CandidataId.ToString());
                     if (!Directory.Exists(carpetaDestino)) Directory.CreateDirectory(carpetaDestino);
 
                     foreach (var foto in _fotosNuevasTemp)
                     {
+                        // Timestamp para evitar colisión de nombres.
                         string nombreArchivo = $"foto_{DateTime.Now.Ticks}_{Path.GetFileName(foto.RutaArchivo)}";
                         string rutaDestino = Path.Combine(carpetaDestino, nombreArchivo);
+                        
                         File.Copy(foto.RutaArchivo, rutaDestino, true);
+                        
+                        // Actualizo la referencia en el objeto para que apunte al archivo COPIADO, no al original.
                         foto.RutaArchivo = rutaDestino;
                     }
                 }
 
+                // Guardo en BD (Transaccional).
                 if (_albumDAO.GuardarAlbumCompleto(_albumEnEdicion, _fotosNuevasTemp))
                 {
                     MessageBox.Show("Guardado con éxito.");
