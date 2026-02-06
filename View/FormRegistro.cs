@@ -58,6 +58,7 @@ namespace SIVUG
         private void FormRegistroEstudiantes_Load(object sender, EventArgs e)
         {
             CargarFacultades();
+            
         }
 
         /// <summary>

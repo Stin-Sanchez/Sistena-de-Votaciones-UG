@@ -229,7 +229,7 @@ namespace SIVUG.View
         {
             try
             {
-                // ✅ PASO 1: Validación básica de campos vacíos.
+                // PASO 1: Validación básica de campos vacíos.
                 if (string.IsNullOrWhiteSpace(txtUsuario.Text) || string.IsNullOrWhiteSpace(txtPassword.Text))
                 {
                     MostrarError("Completa usuario y contraseña");
