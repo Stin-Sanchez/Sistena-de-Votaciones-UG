@@ -1,4 +1,5 @@
 ﻿using SIVUG.Models.DTOS;
+using SIVUG.Models.DTOS.SIVUG.Models.DTOS;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,14 +8,7 @@ using System.Threading.Tasks;
 
 namespace SIVUG.Models
 {
-    public enum Rol
-    {
-        ADMINISTRADOR=0,
-        ESTUDIANTE=1,
-        CANDIDATA=2
-    }
-
-
+   
 
     // Representa un estudiante de la universidad que puede votar en el concurso
     public class Estudiante : Persona
@@ -30,14 +24,13 @@ namespace SIVUG.Models
         // Objeto completo para mostrar nombre en la vista
         public Carrera Carrera { get; set; }
 
-        public string FotoPerfilRuta {  get; set; }
+        public string FotoPerfilRuta { get; set; }
 
         //Semestre actual (1-10 típicamente)
         public byte Semestre { get; set; }
 
-        //Rol en el sistema
-        public Rol RolEstudiante { get; set; }
-       
+      
+
         /*Indica si el estudiante ya emitió su voto para Reina
             NOTA: Se actualiza en la capa de servicio después de persistir el voto*/
         public bool HavotadoReina { get; set; }
@@ -114,18 +107,18 @@ namespace SIVUG.Models
           2. Verificar que la foto existe y está activa
           3. Persistir el comentario en BD
          */
-       
+
         public Comentario ComentarFoto(string contenido, Foto foto)
         {
-            return new Comentario(contenido, this,foto);
-         
+            return new Comentario(contenido, this, foto);
+
         }
 
 
     }
 
-        
-        
+
+
 
 
 

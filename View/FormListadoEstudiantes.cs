@@ -10,26 +10,36 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+
 namespace SIVUG.View
 {
-
+    /// <summary>
+    /// VISTA MAESTRA DE ESTUDIANTES.
+    /// Responsabilidades:
+    /// - Cargar y mostrar grandes volúmenes de datos.
+    /// - Filtrar en tiempo real (Client-side) para evitar recargas constantes.
+    /// - Gestionar la navegación hacia detalles y formularios de creación.
+    /// </summary>
     public partial class FormListadoEstudiantes : Form
     {
-        // Lista Maestra (Mantiene TODOS los datos originales)
+        // CACHÉ DE DATOS: 
+        // Mantengo la lista completa en RAM para que los filtros sean instantáneos.
+        // Esto reduce drásticamente las consultas a la base de datos (Performance).
         private List<Estudiante> _listaOriginal;
 
-        // DAOs
+        // Capa de acceso a datos.
         private EstudianteDAO _estDAO;
         private FacultadDAO _facDAO;
         private CarreraDAO _carDAO;
 
-        // Banderas para evitar disparos de eventos durante la carga inicial
+        // Banderas de estado para controlar el flujo de eventos de UI.
         private bool _cargando = false;
 
-        // Timer para debounce en búsqueda de texto
+        // Optimización: Timer para implementar "Debounce" en la búsqueda por texto.
+        // Evita filtrar con cada tecla pulsada, esperando a que el usuario termine de escribir.
         private System.Windows.Forms.Timer _searchTimer;
 
-        // Controles del formulario
+        // Controles de UI construidos por código (Mejor control del layout).
         private TableLayoutPanel mainLayout;
         private Panel headerPanel;
         private Panel filterPanel;
@@ -49,9 +59,14 @@ namespace SIVUG.View
         private DataGridView dgvEstudiantes;
         private ProgressBar progressBar;
 
+        /// <summary>
+        /// Constructor: Configura dependencias y prepara el entorno visual.
+        /// </summary>
         public FormListadoEstudiantes()
         {
             InitializeComponent();
+            
+            // Construcción del Layout responsivo.
             InicializarComponentesPersonalizados();
             ConfigurarEstilos();
 
@@ -59,23 +74,27 @@ namespace SIVUG.View
             _facDAO = new FacultadDAO();
             _carDAO = new CarreraDAO();
 
-            // Configurar timer para búsqueda con debounce (300ms)
+            // Configuración del Debounce: 300ms de espera tras la última tecla.
             _searchTimer = new System.Windows.Forms.Timer();
             _searchTimer.Interval = 300;
             _searchTimer.Tick += SearchTimer_Tick;
         }
 
+        /// <summary>
+        /// Método masivo de construcción de UI.
+        /// Divide la pantalla en 4 áreas: Header, Filtros, Contenido (Grid) y Footer.
+        /// </summary>
         private void InicializarComponentesPersonalizados()
         {
             this.SuspendLayout();
 
-            // Configuración del Form
+            // Configuración base de la ventana.
             this.Text = "Gestión de Estudiantes";
-            this.MinimumSize = new Size(900, 600);
+            this.MinimumSize = new Size(1000, 600);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.WindowState = FormWindowState.Maximized;
 
-            // Layout principal - Responsive
+            // Layout Principal (Grilla de 4 filas).
             mainLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -85,11 +104,10 @@ namespace SIVUG.View
                 BackColor = Color.FromArgb(240, 240, 245)
             };
 
-            // Configurar filas: Header (auto), Filters (auto), Content (100%), Footer (auto)
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 90));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 120));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 60));
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 80));  // Header
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 100)); // Filtros
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Grid (Flexible)
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));  // Footer
 
             // === HEADER PANEL ===
             headerPanel = new Panel
@@ -101,7 +119,7 @@ namespace SIVUG.View
 
             lblTitle = new Label
             {
-                Text = "📚 Listado de Estudiantes",
+                Text = "Listado de Estudiantes",
                 Font = new Font("Segoe UI", 18, FontStyle.Bold),
                 ForeColor = Color.FromArgb(33, 37, 41),
                 Dock = DockStyle.Left,
@@ -124,26 +142,70 @@ namespace SIVUG.View
             {
                 Dock = DockStyle.Fill,
                 BackColor = Color.White,
-                Padding = new Padding(20),
+                Padding = new Padding(15),
                 Margin = new Padding(0, 10, 0, 0)
             };
 
-            // Layout para filtros - 3 columnas responsive
             TableLayoutPanel filterLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                ColumnCount = 3,
-                RowCount = 2,
+                ColumnCount = 4,
+                RowCount = 1,
                 AutoSize = true
             };
 
-            filterLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33F));
-            filterLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33F));
-            filterLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33F));
-            filterLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            filterLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            // Columnas de filtros.
+            filterLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40F)); // Buscador Texto
+            filterLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100F)); // Icono
+            filterLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30F)); // Combo Facultad
+            filterLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30F)); // Combo Carrera
 
-            // Facultad
+            // 1. Buscador
+            lblBuscarDNI = new Label
+            {
+                Text = "Buscar por DNI / Nombre:",
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                AutoSize = true,
+                Margin = new Padding(0, 0, 0, 5)
+            };
+            txtBuscarDNI = new TextBox
+            {
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 11),
+                Margin = new Padding(0, 0, 10, 0)
+            };
+            Panel panelBusqueda = CrearPanelFiltro(lblBuscarDNI, txtBuscarDNI);
+
+            // 2. Icono Separador
+            FlowLayoutPanel panelIconoCentro = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                Margin = new Padding(10, 25, 0, 0),
+                AutoSize = true
+            };
+
+            PictureBox pbFilterIcon = new PictureBox
+            {
+                Image = Properties.Resources.icons8_filtrar_20__1_, 
+                Size = new Size(20, 20),
+                SizeMode = PictureBoxSizeMode.Zoom,
+                Margin = new Padding(0, 2, 5, 0) 
+            };
+
+            Label lblFilterText = new Label
+            {
+                Text = "Filtros:",
+                Font = new Font("Segoe UI", 9, FontStyle.Bold | FontStyle.Italic),
+                ForeColor = Color.Gray,
+                AutoSize = true,                                                                                                                                                                                                                                                                
+                Padding = new Padding(0, 2, 0, 0) 
+            };
+
+            panelIconoCentro.Controls.Add(pbFilterIcon);
+            panelIconoCentro.Controls.Add(lblFilterText);
+
+            // 3. Filtro Facultad
             lblFacultad = new Label
             {
                 Text = "Facultad:",
@@ -160,7 +222,7 @@ namespace SIVUG.View
             };
             Panel panelFacultad = CrearPanelFiltro(lblFacultad, cmbFacultad);
 
-            // Carrera
+            // 4. Filtro Carrera
             lblCarrera = new Label
             {
                 Text = "Carrera:",
@@ -172,60 +234,43 @@ namespace SIVUG.View
             {
                 Dock = DockStyle.Fill,
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Font = new Font("Segoe UI", 10),
-                Margin = new Padding(0, 0, 10, 0)
+                Font = new Font("Segoe UI", 10)
             };
             Panel panelCarrera = CrearPanelFiltro(lblCarrera, cmbCarrera);
 
-            // Búsqueda DNI
-            lblBuscarDNI = new Label
-            {
-                Text = "Buscar por DNI:",
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                AutoSize = true,
-                Margin = new Padding(0, 0, 0, 5)
-            };
-            txtBuscarDNI = new TextBox
-            {
-                Dock = DockStyle.Fill,
-                Font = new Font("Segoe UI", 10),
-                Margin = new Padding(0, 0, 10, 0)
-            };
-            Panel panelBusqueda = CrearPanelFiltro(lblBuscarDNI, txtBuscarDNI);
+            filterLayout.Controls.Add(panelBusqueda, 0, 0);
+            filterLayout.Controls.Add(panelIconoCentro, 1, 0);
+            filterLayout.Controls.Add(panelFacultad, 2, 0);
+            filterLayout.Controls.Add(panelCarrera, 3, 0);
 
-            filterLayout.Controls.Add(panelFacultad, 0, 0);
-            filterLayout.Controls.Add(panelCarrera, 1, 0);
-            filterLayout.Controls.Add(panelBusqueda, 2, 0);
-
-            // Botón limpiar filtros
+            // Botón Reset
             btnLimpiarFiltros = new Button
             {
-                Text = "🔄 Limpiar Filtros",
+                Text = "Limpiar Filtros",
                 AutoSize = true,
-                Font = new Font("Segoe UI", 9),
-                Padding = new Padding(15, 8, 15, 8),
+                Font = new Font("Segoe UI", 8),
                 Cursor = Cursors.Hand,
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.FromArgb(108, 117, 125),
-                ForeColor = Color.White
+                ForeColor = Color.White,
+                FlatAppearance = { BorderSize = 0 }
             };
-            btnLimpiarFiltros.FlatAppearance.BorderSize = 0;
-            btnLimpiarFiltros.Margin = new Padding(0, 10, 0, 0);
 
-            FlowLayoutPanel buttonPanel = new FlowLayoutPanel
+            FlowLayoutPanel btnLimpiarWrapper = new FlowLayoutPanel
             {
-                Dock = DockStyle.Fill,
-                FlowDirection = FlowDirection.LeftToRight,
-                AutoSize = true
+                AutoSize = true,
+                Margin = new Padding(0, 5, 0, 0)
             };
-            buttonPanel.Controls.Add(btnLimpiarFiltros);
-
-            filterLayout.Controls.Add(buttonPanel, 0, 1);
-            filterLayout.SetColumnSpan(buttonPanel, 3);
+            btnLimpiarWrapper.Controls.Add(btnLimpiarFiltros);
 
             filterPanel.Controls.Add(filterLayout);
+            filterPanel.Controls.Add(btnLimpiarWrapper);
 
-            // === CONTENT PANEL (DataGridView) ===
+            btnLimpiarWrapper.Dock = DockStyle.Bottom;
+            filterLayout.Dock = DockStyle.Top;
+
+
+            // === CONTENT PANEL (GRID) ===
             contentPanel = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -249,33 +294,22 @@ namespace SIVUG.View
                 EnableHeadersVisualStyles = false,
                 Font = new Font("Segoe UI", 9)
             };
-
-            // Estilos del DataGridView
+            // Styling avanzado del Grid.
             dgvEstudiantes.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(52, 58, 64);
             dgvEstudiantes.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
             dgvEstudiantes.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10, FontStyle.Bold);
-            dgvEstudiantes.ColumnHeadersDefaultCellStyle.Padding = new Padding(5);
             dgvEstudiantes.ColumnHeadersHeight = 40;
             dgvEstudiantes.RowTemplate.Height = 35;
-            dgvEstudiantes.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
 
-            progressBar = new ProgressBar
-            {
-                Dock = DockStyle.Bottom,
-                Height = 3,
-                Style = ProgressBarStyle.Marquee,
-                Visible = false,
-                MarqueeAnimationSpeed = 30
-            };
-
+            progressBar = new ProgressBar { Dock = DockStyle.Bottom, Height = 3, Style = ProgressBarStyle.Marquee, Visible = false };
             contentPanel.Controls.AddRange(new Control[] { dgvEstudiantes, progressBar });
 
-            // === FOOTER PANEL ===
+            // === FOOTER PANEL (ACCIONES) ===
             footerPanel = new Panel
             {
                 Dock = DockStyle.Fill,
                 BackColor = Color.Transparent,
-                Padding = new Padding(0, 10, 0, 0)
+                Padding = new Padding(0, 15, 0, 0)
             };
 
             FlowLayoutPanel footerLayout = new FlowLayoutPanel
@@ -285,37 +319,49 @@ namespace SIVUG.View
                 WrapContents = false
             };
 
+            // Botón Agregar
             btnAgregar = new Button
             {
-                Text = "➕ Agregar Estudiante",
+                Text = " Agregar Estudiante",
                 AutoSize = true,
+                Height = 45, 
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                Padding = new Padding(20, 10, 20, 10),
                 Cursor = Cursors.Hand,
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.FromArgb(40, 167, 69),
-                ForeColor = Color.White
+                ForeColor = Color.White,
+                TextImageRelation = TextImageRelation.ImageBeforeText,
+                ImageAlign = ContentAlignment.MiddleLeft, 
+                TextAlign = ContentAlignment.MiddleLeft, 
+                Padding = new Padding(12, 0, 12, 0),     
+                Image = Properties.Resources.icons8_añadir_20
             };
             btnAgregar.FlatAppearance.BorderSize = 0;
 
+            // Botón Refrescar
             btnRefrescar = new Button
             {
-                Text = "🔄 Refrescar",
+                Text = " Refrescar",
                 AutoSize = true,
+                Height = 45,
                 Font = new Font("Segoe UI", 10),
-                Padding = new Padding(20, 10, 20, 10),
                 Cursor = Cursors.Hand,
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.FromArgb(0, 123, 255),
                 ForeColor = Color.White,
-                Margin = new Padding(0, 0, 10, 0)
+                Margin = new Padding(0, 0, 10, 0),
+                TextImageRelation = TextImageRelation.ImageBeforeText,
+                ImageAlign = ContentAlignment.MiddleLeft,
+                TextAlign = ContentAlignment.MiddleLeft, 
+                Padding = new Padding(15, 0, 15, 0),
+                Image = Properties.Resources.icons8_actualizar_20
             };
             btnRefrescar.FlatAppearance.BorderSize = 0;
 
             footerLayout.Controls.AddRange(new Control[] { btnAgregar, btnRefrescar });
             footerPanel.Controls.Add(footerLayout);
 
-            // Agregar todo al layout principal
+            // Ensamblaje final de paneles.
             mainLayout.Controls.Add(headerPanel, 0, 0);
             mainLayout.Controls.Add(filterPanel, 0, 1);
             mainLayout.Controls.Add(contentPanel, 0, 2);
@@ -323,14 +369,13 @@ namespace SIVUG.View
 
             this.Controls.Add(mainLayout);
 
-            // Eventos
+            // Suscripción a eventos.
             cmbFacultad.SelectedIndexChanged += cmbFacultad_SelectedIndexChanged;
             cmbCarrera.SelectedIndexChanged += cmbCarrera_SelectedIndexChanged;
             txtBuscarDNI.TextChanged += txtBuscarDNI_TextChanged;
             btnLimpiarFiltros.Click += btnLimpiarFiltros_Click;
             btnAgregar.Click += btnAdd_Click;
             btnRefrescar.Click += btnRefrescar_Click;
-
             this.Load += FormListadoEstudiantes_Load;
             this.Resize += FormListadoEstudiantes_Resize;
 
@@ -352,7 +397,7 @@ namespace SIVUG.View
 
         private void ConfigurarEstilos()
         {
-            // Configurar tooltips
+            // Tooltips de ayuda UX.
             ToolTip toolTip = new ToolTip();
             toolTip.SetToolTip(cmbFacultad, "Seleccione una facultad para filtrar");
             toolTip.SetToolTip(cmbCarrera, "Seleccione una carrera para filtrar");
@@ -367,6 +412,9 @@ namespace SIVUG.View
             CargarDatosAsync();
         }
 
+        /// <summary>           
+        /// Carga asíncrona de datos para no congelar la UI.
+        /// </summary>
         private async void CargarDatosAsync()
         {
             _cargando = true;
@@ -374,20 +422,36 @@ namespace SIVUG.View
 
             try
             {
-                // Simular carga asíncrona para mejor UX
                 await Task.Run(() =>
                 {
-                    // A. Cargar Combos
+                    // Update de UI thread-safe.
                     this.Invoke((MethodInvoker)delegate
                     {
                         CargarComboFacultades();
                     });
 
-                    // B. Traer TODOS los datos de la BD
-                    _listaOriginal = _estDAO.ObtenerTodosDetallado();
+                    // Carga pesada en background thread.
+                    var listaBase = _estDAO.ObtenerTodosDetallado();
+                    
+                    // Mapeo a objeto local optimizado.
+                    _listaOriginal = listaBase.Select(e => new Estudiante
+                    {
+                        Matricula = e.Matricula,
+                        Semestre = e.Semestre,
+                        IdCarrera = e.IdCarrera,
+                        Carrera = e.Carrera,
+                        HavotadoReina = e.HavotadoReina,
+                        HavotadoFotogenia = e.HavotadoFotogenia,
+                        FotoPerfilRuta = e.FotoPerfilRuta,
+                
+                        IdUsuario = e.Usuario.IdUsuario,
+                        DNI = e.DNI,
+                        Nombres = e.Nombres,
+                        Apellidos = e.Apellidos,
+                        Edad = e.Edad
+                    }).ToList();
                 });
 
-                // C. Mostrar todo inicialmente
                 AplicarFiltros();
             }
             catch (Exception ex)
@@ -417,6 +481,7 @@ namespace SIVUG.View
             cmbFacultad.DisplayMember = "Nombre";
             cmbFacultad.ValueMember = "Id";
 
+            // Carga en cascada.
             CargarComboCarreras(0);
         }
 
@@ -444,7 +509,7 @@ namespace SIVUG.View
 
             int idFac = (int)cmbFacultad.SelectedValue;
 
-            _cargando = true;
+            _cargando = true; // Bloqueo temporal para evitar recursividad
             CargarComboCarreras(idFac);
             _cargando = false;
 
@@ -459,13 +524,14 @@ namespace SIVUG.View
 
         private void txtBuscarDNI_TextChanged(object sender, EventArgs e)
         {
-            // Implementar debounce para búsqueda en tiempo real
+            // Reset del Timer para esperar inactividad.
             _searchTimer.Stop();
             _searchTimer.Start();
         }
 
         private void SearchTimer_Tick(object sender, EventArgs e)
         {
+            // Ejecución diferida de la búsqueda.
             _searchTimer.Stop();
             AplicarFiltros();
         }
@@ -484,13 +550,17 @@ namespace SIVUG.View
             CargarDatosAsync();
         }
 
+        /// <summary>
+        /// Motor de filtrado en memoria usando LINQ.
+        /// Actualiza el DataGridView sin tocar la base de datos.
+        /// </summary>
         private void AplicarFiltros()
         {
             if (_listaOriginal == null) return;
 
             var resultado = _listaOriginal.AsEnumerable();
 
-            // 1. Filtro por Facultad
+            // Filtro 1: Facultad
             if (cmbFacultad.SelectedValue != null)
             {
                 int idFac = (int)cmbFacultad.SelectedValue;
@@ -500,7 +570,7 @@ namespace SIVUG.View
                 }
             }
 
-            // 2. Filtro por Carrera
+            // Filtro 2: Carrera
             if (cmbCarrera.SelectedValue != null)
             {
                 int idCar = (int)cmbCarrera.SelectedValue;
@@ -510,20 +580,19 @@ namespace SIVUG.View
                 }
             }
 
-            // 3. Filtro por DNI (Búsqueda parcial)
+            // Filtro 3: Texto (DNI/Nombre)
             string textoDNI = txtBuscarDNI.Text.Trim();
             if (!string.IsNullOrEmpty(textoDNI))
             {
+                // Búsqueda "Contains" flexible.
                 resultado = resultado.Where(x => x.DNI.Contains(textoDNI));
             }
 
-            // Convertir a lista
             var listaFiltrada = resultado.ToList();
 
-            // Actualizar contador
             ActualizarContador(listaFiltrada.Count);
 
-            // Renderizar en grid
+            // Proyección anónima para mostrar solo las columnas relevantes en el Grid.
             dgvEstudiantes.DataSource = listaFiltrada.Select(x => new
             {
                 Matrícula = x.Matricula,
@@ -536,7 +605,7 @@ namespace SIVUG.View
                 Semestre = x.Semestre
             }).ToList();
 
-            // Ajustar anchos de columnas
+            // Ajuste fino de columnas.
             if (dgvEstudiantes.Columns.Count > 0)
             {
                 dgvEstudiantes.Columns["Matrícula"].Width = 100;
@@ -556,9 +625,9 @@ namespace SIVUG.View
         private void btnAdd_Click(object sender, EventArgs e)
         {
             FormRegistro registro = new FormRegistro();
-            registro.ShowDialog(); // Usar ShowDialog para modal
+            registro.ShowDialog(); 
 
-            // Refrescar después de cerrar
+            // Si se creó exitosamente, recargo la data.
             if (registro.DialogResult == DialogResult.OK)
             {
                 CargarDatosAsync();
@@ -567,10 +636,9 @@ namespace SIVUG.View
 
         private void FormListadoEstudiantes_Resize(object sender, EventArgs e)
         {
-            // Ajustar layout en dispositivos pequeños
+            // Responsive manual: Ajuste de fuentes según tamaño de ventana.
             if (this.Width < 800)
             {
-                // Modo compacto
                 lblTitle.Font = new Font("Segoe UI", 14, FontStyle.Bold);
             }
             else
@@ -578,8 +646,6 @@ namespace SIVUG.View
                 lblTitle.Font = new Font("Segoe UI", 18, FontStyle.Bold);
             }
         }
-
-
     }
 }
 

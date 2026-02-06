@@ -1,6 +1,7 @@
 ﻿using SIVUG.Models;
 using SIVUG.Models.DAO;
 using SIVUG.Models.DTOS;
+using SIVUG.Models.SERVICES;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -15,30 +16,45 @@ using System.Windows.Forms;
 
 namespace SIVUG.View
 {
+    /// <summary>
+    /// VISTA DE PERFIL PÚBLICO.
+    /// Funciona como la "Hoja de Vida" visual de la candidata.
+    /// 
+    /// CARACTERÍSTICAS UX:
+    /// - Header visual con degradado.
+    /// - Foto de perfil circular (Custom Control).
+    /// - Navegación por pestañas (Tabs): Biografía vs Galería.
+    /// - Scroll infinito para ver múltiples álbumes.
+    /// </summary>
     public partial class FormPerfilCandidata : Form
     {
+        // Contexto de datos
         private Candidata _candidata;
         private AlbumDAO _albumDAO;
+        private EstudianteService _estudianteService;
 
-        // Colores
+        // Paleta de diseño (Tema Pastel/Femenino)
         private Color colorPrimario = Color.FromArgb(255, 105, 180);
         private Color colorFondo = Color.FromArgb(245, 246, 250);
         private Color colorTarjeta = Color.White;
         private Color colorTexto = Color.FromArgb(45, 52, 54);
 
-        // Controles
+        // Contenedores dinámicos
         private Panel panelContenido;
         private Button btnTabBio;
         private Button btnTabFotos;
 
+        /// <summary>
+        /// Constructor: Recibe la candidata a mostrar.
+        /// </summary>
         public FormPerfilCandidata(Candidata candidata)
         {
-
             InitializeComponent();
             _candidata = candidata;
             _albumDAO = new AlbumDAO();
+            _estudianteService = new EstudianteService();
 
-            // Configuración Ventana
+            // Configuración visual: Tamaño fijo tipo "Móvil/App".
             this.Size = new Size(450, 800);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = colorFondo;
@@ -48,7 +64,7 @@ namespace SIVUG.View
 
             InicializarUI();
 
-            // Carga inicial
+            // Carga por defecto: Tab de Biografía.
             MostrarBio();
             ActualizarEstiloTabs(btnTabBio);
         }
@@ -58,12 +74,17 @@ namespace SIVUG.View
 
         }
 
+        /// <summary>
+        /// Construye toda la interfaz gráfica por código para lograr efectos
+        /// que el diseñador estándar de WinForms no permite fácilmente (como degradados y shapes).
+        /// </summary>
         private void InicializarUI()
         {
-            // 1. HEADER CON DEGRADADO
+            // 1. HEADER CON DEGRADADO (GDI+)
             Panel panelHeader = new Panel { Dock = DockStyle.Top, Height = 220, BackColor = colorTarjeta };
             panelHeader.Paint += (s, e) =>
             {
+                // Dibujo un degradado diagonal suave.
                 using (LinearGradientBrush brush = new LinearGradientBrush(new Rectangle(0, 0, this.Width, 140),
                     Color.FromArgb(108, 92, 231), Color.FromArgb(162, 155, 254), 45F))
                 {
@@ -72,23 +93,22 @@ namespace SIVUG.View
             };
             this.Controls.Add(panelHeader);
 
-            // 2. FOTO DE PERFIL
+            // 2. FOTO DE PERFIL CIRCULAR
             PictureBox picAvatar = new CircularPictureBox
             {
                 Size = new Size(130, 130),
-                Location = new Point(20, 70), // Superpuesto
+                Location = new Point(20, 70), // Posicionamiento "Overlay" (mitad en header, mitad fuera).
                 SizeMode = PictureBoxSizeMode.StretchImage,
                 BackColor = Color.WhiteSmoke,
                 BorderColor = Color.White,
                 BorderSize = 4
             };
+            // Carga segura de imagen.
             if (!string.IsNullOrEmpty(_candidata.ImagenPrincipal) && File.Exists(_candidata.ImagenPrincipal))
                 picAvatar.Image = Image.FromFile(_candidata.ImagenPrincipal);
             panelHeader.Controls.Add(picAvatar);
 
-            // 3. DATOS (Muestra Nombres y Apellidos COMPLETOS)
-
-            // Usamos el operador ?? para decir: "Si es null, usa cadena vacía"
+            // 3. DATOS PERSONALES
             string nombresCompletos = _candidata.Nombres ?? "";
             string apellidosCompletos = _candidata.Apellidos ?? "";
 
@@ -99,7 +119,7 @@ namespace SIVUG.View
                 AutoSize = true,
                 Font = new Font("Segoe UI", 16, FontStyle.Bold),
                 ForeColor = colorTexto,
-                MaximumSize = new Size(260, 0) // Importante: Limita el ancho para que si es muy largo baje de línea
+                MaximumSize = new Size(260, 0) // Wrap de texto si el nombre es muy largo.
             };
             panelHeader.Controls.Add(lblNombre);
 
@@ -113,7 +133,7 @@ namespace SIVUG.View
             };
             panelHeader.Controls.Add(lblCarrera);
 
-            // Etiqueta Tipo
+            // Badge de Categoría (Reina/Fotogenia)
             Label lblTipo = new Label
             {
                 Text = _candidata.tipoCandidatura.ToString().ToUpper(),
@@ -126,7 +146,7 @@ namespace SIVUG.View
             };
             panelHeader.Controls.Add(lblTipo);
 
-            // 4. SISTEMA DE TABS (TableLayout para que no fallen los clics)
+            // 4. SISTEMA DE PESTAÑAS (Tabs)
             TableLayoutPanel tableTabs = new TableLayoutPanel
             {
                 Dock = DockStyle.Top,
@@ -142,17 +162,17 @@ namespace SIVUG.View
             btnTabBio = CrearBotonTab("Sobre Mí");
             btnTabFotos = CrearBotonTab("Galería");
 
-            // Eventos Click explícitos
+            // Eventos de navegación interna sin recargar formulario.
             btnTabBio.Click += (s, e) => { MostrarBio(); ActualizarEstiloTabs(btnTabBio); };
             btnTabFotos.Click += (s, e) => { MostrarAlbumes(); ActualizarEstiloTabs(btnTabFotos); };
 
             tableTabs.Controls.Add(btnTabBio, 0, 0);
             tableTabs.Controls.Add(btnTabFotos, 1, 0);
 
-            // 5. CONTENIDO
+            // 5. ÁREA DE CONTENIDO SCROLLABLE
             panelContenido = new Panel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(20) };
             this.Controls.Add(panelContenido);
-            panelContenido.BringToFront(); // Asegurar que se vea
+            panelContenido.BringToFront(); 
         }
 
         private Button CrearBotonTab(string texto)
@@ -170,48 +190,41 @@ namespace SIVUG.View
             };
         }
 
+        /// <summary>
+        /// Feedback visual: Resalta la pestaña activa cambiando el color del texto.
+        /// </summary>
         private void ActualizarEstiloTabs(Button activo)
         {
-            // Reset visual
             btnTabBio.ForeColor = Color.Gray;
             btnTabFotos.ForeColor = Color.Gray;
-
-            // Activar seleccionado
             activo.ForeColor = colorPrimario;
         }
 
-        // ---------------- LOGICA DE DATOS ------------------
+        // ---------------- LOGICA DE PESTAÑA: BIOGRAFÍA ------------------
 
         private void MostrarBio()
         {
             panelContenido.Controls.Clear();
             int yPos = 20;
 
-            // 1. CARGA DE DATOS USANDO  DAO EXISTENTE
+            // Recupero los detalles extendidos (Habilidades, Hobbies) desde la BD.
             CatalogoDAO catalogoDAO = new CatalogoDAO();
-
-            // Llamamos al método que devuelve List<CatalogoDTO>
             List<CatalogoDTO> listaCompleta = catalogoDAO.ObtenerDeCandidata(_candidata.CandidataId);
 
-          
-            // Filtramos la lista única para llenar las propiedades de la candidata
-
+            // Clasifico los datos usando LINQ para mostrarlos ordenados.
             _candidata.Habilidades = listaCompleta
-                .Where(x => x.Tipo == "HABILIDAD") // Filtramos por el campo 'Tipo'
-                .Select(x => x.Nombre)             // Solo tomamos el texto
-                .ToList();
+                .Where(x => x.Tipo == "HABILIDAD")
+                .Select(x => x.Nombre).ToList();
 
             _candidata.Pasatiempos = listaCompleta
                 .Where(x => x.Tipo == "PASATIEMPO")
-                .Select(x => x.Nombre)
-                .ToList();
+                .Select(x => x.Nombre).ToList();
 
             _candidata.Aspiraciones = listaCompleta
                 .Where(x => x.Tipo == "ASPIRACION")
-                .Select(x => x.Nombre)
-                .ToList();
+                .Select(x => x.Nombre).ToList();
 
-            // 3. RENDERIZADO VISUAL
+            // Renderizado condicional: Solo muestro secciones que tengan datos.
             if (_candidata.Habilidades.Count > 0)
                 yPos = AgregarBloqueTags("✨ Habilidades", _candidata.Habilidades, yPos, Color.FromArgb(223, 249, 251), Color.FromArgb(19, 15, 64));
 
@@ -221,7 +234,7 @@ namespace SIVUG.View
             if (_candidata.Aspiraciones.Count > 0)
                 yPos = AgregarBloqueTags("🎯 Aspiraciones", _candidata.Aspiraciones, yPos, Color.FromArgb(250, 227, 217), Color.FromArgb(189, 87, 87));
 
-            // Mensaje si no hay nada
+            // Empty State
             if (yPos == 20)
             {
                 Label lblVacio = new Label
@@ -236,6 +249,9 @@ namespace SIVUG.View
             }
         }
 
+        /// <summary>
+        /// Helper para dibujar "Tags" o etiquetas de colores (estilo Web 2.0).
+        /// </summary>
         private int AgregarBloqueTags(string titulo, List<string> items, int top, Color bg, Color text)
         {
             if (items == null || items.Count == 0) return top;
@@ -254,11 +270,11 @@ namespace SIVUG.View
             return top + flow.Height + 20;
         }
 
+        // ---------------- LOGICA DE PESTAÑA: GALERÍA ------------------
+
         private void MostrarAlbumes()
         {
             panelContenido.Controls.Clear();
-
-            // VARIABLE CLAVE: Controla la posición vertical
             int yPos = 20;
 
             try
@@ -285,15 +301,13 @@ namespace SIVUG.View
                 {
                     List<Foto> fotosDelAlbum = _albumDAO.ObtenerFotosPorAlbum(album.Id);
 
+                    // Componente complejo: Tarjeta de Álbum con scroll horizontal.
                     Panel tarjetaAlbum = CrearTarjetaAlbum(album, fotosDelAlbum);
-
-                    // --- CORRECCIÓN: ASIGNAR POSICIÓN MANUALMENTE ---
                     tarjetaAlbum.Location = new Point(20, yPos);
 
                     panelContenido.Controls.Add(tarjetaAlbum);
 
-                    // Aumentamos yPos para que el siguiente álbum se dibuje más abajo
-                    // Altura de tarjeta (240) + Espacio separación (20)
+                    // Cálculo dinámico de posición Y para el siguiente elemento (Stacking).
                     yPos += tarjetaAlbum.Height + 20;
                 }
             }
@@ -305,18 +319,17 @@ namespace SIVUG.View
 
         private Panel CrearTarjetaAlbum(Album album, List<Foto> fotos)
         {
-            // A. Contenedor del Álbum
+            // Contenedor principal del álbum.
             Panel panelAlbum = new Panel
             {
-                Size = new Size(panelContenido.Width - 40, 240), // Alto fijo
-                Margin = new Padding(0, 0, 0, 30), // Espacio abajo entre álbumes
+                Size = new Size(panelContenido.Width - 40, 240),
+                Margin = new Padding(0, 0, 0, 30),
                 BackColor = Color.White
             };
-            // Borde suave
             panelAlbum.Paint += (s, e) => ControlPaint.DrawBorder(e.Graphics, panelAlbum.ClientRectangle,
                                           Color.LightGray, ButtonBorderStyle.Solid);
 
-            // B. Título y Descripción
+            // Metadatos del álbum.
             Label lblTitulo = new Label
             {
                 Text = album.Titulo.ToUpper(),
@@ -337,13 +350,13 @@ namespace SIVUG.View
             };
             panelAlbum.Controls.Add(lblDesc);
 
-            // C. Contenedor de Fotos (Horizontal Scroll)
+            // Carrusel de Fotos Horizontal (Horizontal Scroll).
             FlowLayoutPanel scrollFotos = new FlowLayoutPanel
             {
                 Location = new Point(10, 60),
                 Size = new Size(panelAlbum.Width - 20, 160),
-                AutoScroll = true,       // Permite scroll si hay muchas fotos
-                WrapContents = false,    // IMPORTANTE: Hace que sea una fila horizontal infinita
+                AutoScroll = true,
+                WrapContents = false, // Clave para que sea horizontal infinito.
                 BackColor = Color.WhiteSmoke
             };
 
@@ -353,33 +366,59 @@ namespace SIVUG.View
                 {
                     PictureBox pic = new PictureBox
                     {
-                        Size = new Size(140, 130), // Tamaño de la miniatura
+                        Size = new Size(140, 130),
                         SizeMode = PictureBoxSizeMode.Zoom,
                         BackColor = Color.Black,
-                        Margin = new Padding(0, 5, 15, 5), // Separación entre fotos
+                        Margin = new Padding(0, 5, 15, 5),
                         Cursor = Cursors.Hand
                     };
 
-                    // Carga segura
                     if (File.Exists(foto.RutaArchivo))
                     {
                         try { pic.Image = Image.FromFile(foto.RutaArchivo); } catch { }
                     }
 
-                    pic.Click += (s, e) => {
-
-                        // Pasamos:
-                        // 1. La foto específica a la que se dio click (foto)
-                        // 2. La lista COMPLETA de fotos de ese álbum (fotos) -> 
-                        // 3. El estudiante que esta en la sesion
-
-                        if (Sesion.UsuarioLogueado == null)
+                    // Navegación al detalle (Zoom).
+                    pic.Click += (s, e) =>
+                    {
+                        // Seguridad: Solo usuarios autenticados pueden ver detalles/comentar.
+                        if (!Sesion.EstaLogueado())
                         {
                             MessageBox.Show("Debes iniciar sesión para ver detalles y comentar.");
-                            return; // O abrir el FormLogin
+                            return;
                         }
-                        FormDetalleFoto frmDetalle = new FormDetalleFoto(foto, fotos, Sesion.UsuarioLogueado);
 
+                        // Validación: Asegurar que el usuario tenga un perfil válido.
+                        Estudiante estudianteLogueado = Sesion.EstudianteLogueado;
+
+                        // Si es la primera vez en la sesión, intento recuperar el perfil de estudiante.
+                        if (estudianteLogueado == null && Sesion.UsuarioActual?.Persona != null)
+                        {
+                            string cedula = Sesion.UsuarioActual.Persona.DNI;
+                            if (!string.IsNullOrWhiteSpace(cedula))
+                            {
+                                estudianteLogueado = _estudianteService.ObtenerPorCedula(cedula);
+                            }
+                        }
+
+                        bool isAdmin = Sesion.UsuarioActual?.Rol?.Nombre == "Administrador";
+
+                        // Si falla la validación, decido según rol.
+                        if (estudianteLogueado == null)
+                        {
+                            // Admin puede ver pero no comentar (modo solo lectura).
+                            if (isAdmin)
+                            {
+                                FormDetalleFoto frmDetalleAdmin = new FormDetalleFoto(foto, fotos, null);
+                                frmDetalleAdmin.ShowDialog();
+                                return;
+                            }
+                            MessageBox.Show("Tu cuenta no tiene perfil de estudiante para acceder a este recurso.");
+                            return;
+                        }
+
+                        // Estudiante normal: Acceso completo.
+                        FormDetalleFoto frmDetalle = new FormDetalleFoto(foto, fotos, estudianteLogueado);
                         frmDetalle.ShowDialog();
                     };
 
@@ -403,32 +442,35 @@ namespace SIVUG.View
             return panelAlbum;
         }
 
-        // Clase auxiliar PictureBox Redondo
+        // --- CUSTOM CONTROL: PictureBox Redondo ---
+        // Clase interna para dibujar imágenes circulares mediante GraphicsPath.
         public class CircularPictureBox : PictureBox
         {
             public int BorderSize { get; set; } = 2;
             public Color BorderColor { get; set; } = Color.RoyalBlue;
+            
             protected override void OnPaint(PaintEventArgs pe)
             {
                 pe.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
                 Rectangle rect = new Rectangle(0, 0, this.Width, this.Height);
+                
                 using (GraphicsPath path = new GraphicsPath())
                 {
                     path.AddEllipse(rect);
-                    this.Region = new Region(path);
-                    base.OnPaint(pe);
-                    if (BorderSize > 0) using (Pen pen = new Pen(BorderColor, BorderSize))
+                    this.Region = new Region(path); // Recorte circular
+                    
+                    base.OnPaint(pe); // Dibujo la imagen recortada
+                    
+                    // Dibujo el borde encima
+                    if (BorderSize > 0) 
+                        using (Pen pen = new Pen(BorderColor, BorderSize))
                         {
-                            pen.Alignment = PenAlignment.Inset; pe.Graphics.DrawEllipse(pen, rect);
+                            pen.Alignment = PenAlignment.Inset; 
+                            pe.Graphics.DrawEllipse(pen, rect);
                         }
                 }
             }
-
-
         }
     }
 }
-
-
-    
 

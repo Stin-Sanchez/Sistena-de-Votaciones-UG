@@ -13,47 +13,59 @@ using System.Windows.Forms;
 
 namespace SIVUG.View
 {
-
+    /// <summary>
+    /// VISTA DE VOTACIÓN.
+    ///Donde los estudiantes ejercen su derecho al voto.
+    /// Responsabilidades principales:
+    /// 1. Validar la identidad y elegibilidad del estudiante (¿Ya votó?).
+    /// 2. Filtrar candidatas según la categoría elegida (Reina vs Fotogenia).
+    /// 3. Garantizar una confirmación explícita antes de persistir el voto.
+    /// </summary>
     public partial class FormRegistroVotos : Form
     {
+        // Servicios de dominio para la lógica de negocio.
         private EstudianteService estudianteService;
         private VotacionService votacionService;
+        
+        // Acceso a datos para obtener el catálogo de candidatas.
         private CandidataDAO candidataDAO;
 
+        // Estado del formulario (Contexto actual).
         private Estudiante estudianteActual;
         private List<Candidata> candidatasActivas;
-        private int candidataSeleccionadaId = 0;
+        private int candidataSeleccionadaId = 0; // 0 indica ninguna selección.
         private TipoVoto tipoVotacionSeleccionado;
 
-        // Controles
+        // Componentes de la interfaz generados manualmente.
         private TextBox txtCedula;
         private Button btnBuscar;
         private ComboBox cboTipoVotacion;
         private Panel panelEstudiante;
-        private Panel panelCandidatas;
+        private Panel panelCandidatas; // Contenedor dinámico de tarjetas.
         private Button btnConfirmarVoto;
         private Button btnCancelar;
         private Label lblEstadoVoto;
         private Label lblTipoVotacionSeleccionado;
 
 
-        private void FormRegistroVotos_Load(object sender, EventArgs e)
-        {
-          
-
-        }
         public FormRegistroVotos()
         {
             InitializeComponent();
+            
+            // Inyección de dependencias manual.
             estudianteService = new EstudianteService();
             votacionService = new VotacionService();
             candidataDAO = new CandidataDAO();
 
             ConfigurarFormulario();
+            
+            // Construcción del Layout visual.
             InicializarComponentes();
         }
 
-
+        private void FormRegistroVotos_Load(object sender, EventArgs e)
+        {
+        }
 
         private void ConfigurarFormulario()
         {
@@ -61,13 +73,16 @@ namespace SIVUG.View
             this.Size = new Size(1000, 800);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.FromArgb(240, 240, 245);
-            this.FormBorderStyle = FormBorderStyle.FixedDialog;
+            this.FormBorderStyle = FormBorderStyle.FixedDialog; // Tamaño fijo para mantener la integridad del diseño.
             this.MaximizeBox = false;
         }
 
+        /// <summary>
+        /// Orquesta la creación de todos los paneles de la interfaz paso a paso.
+        /// </summary>
         private void InicializarComponentes()
         {
-            // Título
+            // Header
             Label lblTitulo = new Label
             {
                 Text = "REGISTRO DE VOTACIÓN",
@@ -78,19 +93,11 @@ namespace SIVUG.View
             };
             this.Controls.Add(lblTitulo);
 
-            // Panel de búsqueda de estudiante
+            // Secciones lógicas del proceso de votación.
             CrearPanelBusqueda();
-
-            // Panel de selección de tipo de votación
             CrearPanelTipoVotacion();
-
-            // Panel de información del estudiante
             CrearPanelEstudiante();
-
-            // Panel de candidatas
             CrearPanelCandidatas();
-
-            // Botones de acción
             CrearBotonesAccion();
         }
 
@@ -121,6 +128,7 @@ namespace SIVUG.View
                 Size = new Size(250, 30),
                 Font = new Font("Segoe UI", 12F)
             };
+            // UX: Permitir buscar al presionar Enter.
             txtCedula.KeyPress += TxtCedula_KeyPress;
             panelBusqueda.Controls.Add(txtCedula);
 
@@ -139,6 +147,7 @@ namespace SIVUG.View
             btnBuscar.Click += BtnBuscar_Click;
             panelBusqueda.Controls.Add(btnBuscar);
 
+            // Etiqueta para feedback inmediato sobre el estado del votante (habilitado/bloqueado).
             lblEstadoVoto = new Label
             {
                 Location = new Point(480, 42),
@@ -158,7 +167,7 @@ namespace SIVUG.View
                 Size = new Size(920, 90),
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle,
-                Visible = false
+                Visible = false // Se oculta hasta que se valide un estudiante.
             };
             panelTipo.Name = "panelTipoVotacion";
             this.Controls.Add(panelTipo);
@@ -193,7 +202,7 @@ namespace SIVUG.View
             cboTipoVotacion.SelectedIndexChanged += CboTipoVotacion_SelectedIndexChanged;
             panelTipo.Controls.Add(cboTipoVotacion);
 
-            // Cargar enum en el ComboBox
+            // Populo el combo con los valores del Enum.
             CargarTiposVotacion();
 
             lblTipoVotacionSeleccionado = new Label
@@ -211,7 +220,6 @@ namespace SIVUG.View
         {
             cboTipoVotacion.Items.Clear();
 
-            // Agregar cada valor del enum
             foreach (TipoVoto tipo in Enum.GetValues(typeof(TipoVoto)))
             {
                 cboTipoVotacion.Items.Add(new ComboBoxItem
@@ -229,16 +237,13 @@ namespace SIVUG.View
         {
             switch (tipo)
             {
-                case TipoVoto.Reina:
-                    return "👑 Reina de la Universidad";
-                case TipoVoto.Fotogenia:
-                    return "📸 Miss Fotogenia";
-                default:
-                    return tipo.ToString();
+                case TipoVoto.Reina: return "👑 Reina de la Universidad";
+                case TipoVoto.Fotogenia: return "📸 Miss Fotogenia";
+                default: return tipo.ToString();
             }
         }
 
-        // Clase auxiliar para el ComboBox
+        // Wrapper class para elementos del combobox.
         private class ComboBoxItem
         {
             public string Text { get; set; }
@@ -266,8 +271,6 @@ namespace SIVUG.View
                 AutoSize = true
             };
             panelEstudiante.Controls.Add(lblTituloEstudiante);
-
-            // Los datos se llenarán dinámicamente
         }
 
         private void CrearPanelCandidatas()
@@ -283,6 +286,7 @@ namespace SIVUG.View
             lblTituloCandidatas.Name = "lblTituloCandidatas";
             this.Controls.Add(lblTituloCandidatas);
 
+            // FlowLayoutPanel o Panel con AutoScroll para permitir muchas candidatas.
             panelCandidatas = new Panel
             {
                 Location = new Point(30, 430),
@@ -307,7 +311,7 @@ namespace SIVUG.View
                 Font = new Font("Segoe UI", 12F, FontStyle.Bold),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand,
-                Enabled = false
+                Enabled = false // Se habilita solo cuando hay selección válida.
             };
             btnConfirmarVoto.FlatAppearance.BorderSize = 0;
             btnConfirmarVoto.Click += BtnConfirmarVoto_Click;
@@ -329,22 +333,26 @@ namespace SIVUG.View
             this.Controls.Add(btnCancelar);
         }
 
-        // Event Handlers
+        // ==================== LÓGICA DE NEGOCIO ====================
+
         private void TxtCedula_KeyPress(object sender, KeyPressEventArgs e)
         {
-            // Solo permitir números
+            // Validar solo números para la cédula.
             if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar))
             {
                 e.Handled = true;
             }
 
-            // Enter para buscar
             if (e.KeyChar == (char)Keys.Enter)
             {
                 BtnBuscar_Click(sender, e);
             }
         }
 
+        /// <summary>
+        /// Busca al estudiante y valida su elegibilidad para votar.
+        /// REGLA DE NEGOCIO: Un estudiante solo puede votar una vez por categoría.
+        /// </summary>
         private void BtnBuscar_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(txtCedula.Text))
@@ -357,9 +365,9 @@ namespace SIVUG.View
 
             try
             {
-                Cursor = Cursors.WaitCursor;
+                Cursor = Cursors.WaitCursor; // Feedback visual
 
-                estudianteActual = estudianteService.ValidarEstudiante(txtCedula.Text);
+                estudianteActual = estudianteService.ObtenerPorCedula(txtCedula.Text);
 
                 if (estudianteActual == null)
                 {
@@ -369,6 +377,7 @@ namespace SIVUG.View
                     return;
                 }
 
+                // Checkeo rápido: Si ya votó en ambas, le avisamos y bloqueamos.
                 if (estudianteActual.HavotadoReina && estudianteActual.HavotadoFotogenia)
                 {
                     lblEstadoVoto.Text = "⚠️ Este estudiante ya ha emitido su voto";
@@ -380,6 +389,7 @@ namespace SIVUG.View
                     return;
                 }
 
+                // Si puede votar, avanzamos.
                 lblEstadoVoto.Text = "✓ Estudiante habilitado para votar";
                 lblEstadoVoto.ForeColor = Color.FromArgb(46, 204, 113);
                 lblEstadoVoto.Visible = true;
@@ -400,16 +410,14 @@ namespace SIVUG.View
 
         private void CboTipoVotacion_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (cboTipoVotacion.SelectedItem == null)
-                return;
+            if (cboTipoVotacion.SelectedItem == null) return;
 
             var itemSeleccionado = (ComboBoxItem)cboTipoVotacion.SelectedItem;
             tipoVotacionSeleccionado = itemSeleccionado.Value;
 
-            // Actualizar mensaje informativo
             ActualizarMensajeTipoVotacion();
 
-            // Cargar candidatas según el tipo seleccionado
+            // Carga dinámica: Solo muestro candidatas que compiten en la categoría seleccionada.
             CargarCandidatasPorTipo();
         }
 
@@ -432,7 +440,7 @@ namespace SIVUG.View
             if (panelTipo != null)
             {
                 panelTipo.Visible = true;
-                cboTipoVotacion.SelectedIndex = -1;
+                cboTipoVotacion.SelectedIndex = -1; // Reset selección.
                 lblTipoVotacionSeleccionado.Text = "";
             }
             panelCandidatas.Visible = false;
@@ -496,15 +504,18 @@ namespace SIVUG.View
             panelEstudiante.Visible = true;
         }
 
+        /// <summary>
+        /// Genera la cuadrícula de tarjetas de candidatas.
+        /// Filtra la lista en memoria usando LINQ para mostrar solo las relevantes.
+        /// </summary>
         private void CargarCandidatasPorTipo()
         {
             panelCandidatas.Controls.Clear();
             candidatasActivas = candidataDAO.ObtenerActivas();
 
             var candidatasFiltradas = candidatasActivas
-         .Where(c => c.tipoCandidatura == tipoVotacionSeleccionado)
-         .ToList();
-            // -----------------------------
+                 .Where(c => c.tipoCandidatura == tipoVotacionSeleccionado)
+                 .ToList();
 
             if (candidatasFiltradas.Count == 0)
             {
@@ -521,6 +532,7 @@ namespace SIVUG.View
                 return;
             }
 
+            // Layout manual de grilla (3 columnas).
             int x = 20;
             int y = 20;
             int itemsPorFila = 3;
@@ -544,11 +556,13 @@ namespace SIVUG.View
                 }
             }
 
-            // Actualizar título con el tipo de votación
+            // Actualizo el título de la sección para dar contexto.
             var lblTitulo = this.Controls.Find("lblTituloCandidatas", false).FirstOrDefault() as Label;
             if (lblTitulo != null)
             {
                 lblTitulo.Text = $"SELECCIONE UNA CANDIDATA PARA {tipoVotacionSeleccionado.ToString().ToUpper()}:";
+                lblTitulo.ForeColor = Color.FromArgb(44, 62, 80);
+                lblTitulo.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
             }
 
             panelCandidatas.Visible = true;
@@ -556,6 +570,9 @@ namespace SIVUG.View
             btnConfirmarVoto.Enabled = false;
         }
 
+        /// <summary>
+        /// Crea una "Tarjeta" visual seleccionable para cada candidata.
+        /// </summary>
         private Panel CrearItemCandidato(Candidata candidata)
         {
             Panel item = new Panel
@@ -563,22 +580,19 @@ namespace SIVUG.View
                 Size = new Size(270, 180),
                 BackColor = Color.FromArgb(250, 250, 250),
                 BorderStyle = BorderStyle.FixedSingle,
-                Tag = candidata.CandidataId,
+                Tag = candidata.CandidataId, // Guardo el ID oculto para usarlo al seleccionar.
                 Cursor = Cursors.Hand
             };
 
-            // --- CORRECCIÓN: IMPLEMENTACIÓN DE IMAGEN ---
-
-            // 1. Creamos el PictureBox
+            // Avatar de candidata.
             PictureBox picFoto = new PictureBox
             {
                 Location = new Point(75, 15),
                 Size = new Size(120, 100),
-                BackColor = Color.FromArgb(189, 195, 199), // Gris por defecto
-                SizeMode = PictureBoxSizeMode.Zoom // Para que la foto no se deforme
+                BackColor = Color.FromArgb(189, 195, 199),
+                SizeMode = PictureBoxSizeMode.Zoom 
             };
 
-            // 2. Intentamos cargar la foto
             bool fotoCargada = false;
             if (!string.IsNullOrEmpty(candidata.ImagenPrincipal) && System.IO.File.Exists(candidata.ImagenPrincipal))
             {
@@ -587,10 +601,10 @@ namespace SIVUG.View
                     picFoto.Image = Image.FromFile(candidata.ImagenPrincipal);
                     fotoCargada = true;
                 }
-                catch { /* Si falla, se queda gris */ }
+                catch { }
             }
 
-            // 3. Si NO se cargó foto, mostramos las iniciales (Tu código anterior)
+            // Fallback: Si no hay foto, muestro iniciales generadas.
             if (!fotoCargada)
             {
                 Label lblIniciales = new Label
@@ -601,14 +615,12 @@ namespace SIVUG.View
                     TextAlign = ContentAlignment.MiddleCenter,
                     Dock = DockStyle.Fill
                 };
-                picFoto.Controls.Add(lblIniciales); // Agregamos las iniciales DENTRO del PictureBox
+                picFoto.Controls.Add(lblIniciales); 
             }
 
-            // Agregamos el PictureBox al item principal
             item.Controls.Add(picFoto);
-            // ---------------------------------------------
 
-            // Nombre (Igual que tenías)
+            // Información visible
             Label lblNombre = new Label
             {
                 Text = candidata.Nombres,
@@ -620,7 +632,6 @@ namespace SIVUG.View
             };
             item.Controls.Add(lblNombre);
 
-            // Facultad (Igual que tenías)
             Label lblFacultad = new Label
             {
                 Text = candidata.Carrera.Facultad.Nombre,
@@ -632,14 +643,13 @@ namespace SIVUG.View
             };
             item.Controls.Add(lblFacultad);
 
-            // --- EVENTOS DE CLIC ---
-            // Es importante agregar el evento click también al PictureBox para que responda
+            // PROPAGACIÓN DE EVENTOS:
+            // Todos los controles hijos deben disparar el click del padre para simular que toda la tarjeta es un botón.
             item.Click += (s, e) => SeleccionarCandidato(item);
-            picFoto.Click += (s, e) => SeleccionarCandidato(item); // <--- Nuevo
+            picFoto.Click += (s, e) => SeleccionarCandidato(item); 
             lblNombre.Click += (s, e) => SeleccionarCandidato(item);
             lblFacultad.Click += (s, e) => SeleccionarCandidato(item);
 
-            // Si había iniciales, también necesitan el evento
             if (picFoto.Controls.Count > 0)
                 picFoto.Controls[0].Click += (s, e) => SeleccionarCandidato(item);
 
@@ -648,26 +658,25 @@ namespace SIVUG.View
 
         private string ObtenerIniciales(string nombreCompleto)
         {
-            // 1. Validación de seguridad por si viene null o vacío
             if (string.IsNullOrWhiteSpace(nombreCompleto)) return "??";
 
-            // 2. CORRECCIÓN: Usamos RemoveEmptyEntries para evitar errores con espacios dobles
+            // Elimino entradas vacías para manejar espacios extra accidentales.
             string[] palabras = nombreCompleto.Trim().Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
-            // 3. Lógica de iniciales
             if (palabras.Length >= 2)
             {
-                // Tomamos la primera letra del primer nombre y la primera del segundo (o apellido)
                 return (palabras[0][0].ToString() + palabras[1][0].ToString()).ToUpper();
             }
 
-            // 4. Caso si solo tiene un nombre (ej: "Sting")
             return nombreCompleto.Substring(0, Math.Min(2, nombreCompleto.Length)).ToUpper();
         }
 
+        /// <summary>
+        /// Maneja el estado visual de selección (Highlight).
+        /// </summary>
         private void SeleccionarCandidato(Panel itemSeleccionado)
         {
-            // Deseleccionar todos
+            // Reset visual: Todas a blanco.
             foreach (Control ctrl in panelCandidatas.Controls)
             {
                 if (ctrl is Panel)
@@ -676,14 +685,18 @@ namespace SIVUG.View
                 }
             }
 
-            // Seleccionar el actual
+            // Highlight: Seleccionada a azul.
             itemSeleccionado.BackColor = Color.FromArgb(52, 152, 219);
             candidataSeleccionadaId = (int)itemSeleccionado.Tag;
             btnConfirmarVoto.Enabled = true;
         }
 
+        /// <summary>
+        /// ACUMULACIÓN Y PERSISTENCIA DEL VOTO.
+        /// </summary>
         private void BtnConfirmarVoto_Click(object sender, EventArgs e)
         {
+            // Validaciones finales de integridad.
             if (cboTipoVotacion.SelectedIndex == -1)
             {
                 MessageBox.Show("Por favor seleccione el tipo de votación", "Validación",
@@ -701,6 +714,7 @@ namespace SIVUG.View
 
             var candidataSeleccionada = candidatasActivas.Find(c => c.CandidataId == candidataSeleccionadaId);
 
+            // Confirmación explícita para evitar errores humanos.
             DialogResult confirmacion = MessageBox.Show(
                 $"CONFIRME SU VOTO:\n\n" +
                 $"Tipo: {ObtenerDescripcionTipoVotacion(tipoVotacionSeleccionado)}\n" +
@@ -717,9 +731,10 @@ namespace SIVUG.View
                 {
                     Cursor = Cursors.WaitCursor;
 
-                    // DENTRO DE BtnConfirmarVoto_Click, antes del try/catch
+                    // Debugging log.
                     MessageBox.Show($"ID Estudiante: {estudianteActual.Id}\nID Candidata: {candidataSeleccionada.CandidataId}\nTipo: {tipoVotacionSeleccionado}", "Depuración");
 
+                    // Llamada al servicio transaccional.
                     bool exito = votacionService.RegistrarVoto(
                         estudianteActual,
                         candidataSeleccionada, tipoVotacionSeleccionado);
@@ -736,7 +751,7 @@ namespace SIVUG.View
                             MessageBoxIcon.Information);
 
                         LimpiarFormulario();
-                        txtCedula.Focus();
+                        txtCedula.Focus(); // Listo para el siguiente votante.
                     }
                     else
                     {
@@ -785,4 +800,3 @@ namespace SIVUG.View
         }
     }
 }
-   

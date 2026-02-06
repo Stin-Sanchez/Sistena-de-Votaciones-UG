@@ -2,20 +2,47 @@
 using SIVUG.Models.DTOS;
 using SIVUG.Util;
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace SIVUG.Models.DAO
 {
+    /// <summary>
+    /// DAO: Acceso a Datos para Candidatas
+    /// 
+    /// Responsabilidades EXCLUSIVAS:
+    /// - Construir y ejecutar queries SQL contra tabla 'candidatas'
+    /// - Mapear resultados de BD a objetos C# (Candidata)
+    /// - Usar SIEMPRE parámetros @name para prevenir SQL Injection
+    /// - Usar Singleton ConexionDB.GetInstance() para obtener conexión
+    /// 
+    /// IMPORTANTE: Este DAO NO contiene lógica de negocio.
+    /// Toda validación debe estar en CandidataService
+    /// </summary>
     public class CandidataDAO
     {
-        // El constructor ya no necesita instanciar la conexión porque usamos el Singleton dentro del método
         public CandidataDAO() { }
 
+        /// <summary>
+        /// Obtiene TODAS las candidatas ACTIVAS con datos relacionados.
+        /// 
+        /// QUERY CRÍTICA: Usa 4 INNER JOINs
+        /// - personas: para nombres, apellidos, edad
+        /// - estudiantes: para validar relación
+        /// - carreras: para nombre de carrera
+        /// - facultades: para nombre de facultad
+        /// 
+        /// FILTRO: WHERE can.activa = 1 (Soft Delete - solo activas)
+        /// ORDEN: por nombres ascendente (para UI)
+        /// 
+        /// Flujo de Mapeo:
+        /// 1. Lee cada fila del resultado
+        /// 2. Crea objeto Candidata con TODOS los datos
+        /// 3. Anida objeto Carrera con Facultad dentro
+        /// 4. Agrega a lista (nunca nulo - retorna lista vacía si falla)
+        /// </summary>
         public List<Candidata> ObtenerActivas()
         {
             List<Candidata> lista = new List<Candidata>();
@@ -25,14 +52,15 @@ namespace SIVUG.Models.DAO
                 try
                 {
                     conn.Open();
-                    // CORRECCIÓN: Agregué c.id_carrera y c.nombre al SELECT
                     string query = @"
                 SELECT 
                     can.id_candidata, 
                     p.nombres, 
                     p.apellidos,
-                    c.id_carrera,               -- FALTABA ESTO
-                    c.nombre AS nombre_carrera, -- FALTABA ESTO
+                    p.dni,
+                    p.edad,
+                    c.id_carrera,
+                    c.nombre AS nombre_carrera, 
                     f.id_facultad,
                     f.nombre AS nombre_facultad,
                     can.tipo_candidatura,
@@ -52,33 +80,30 @@ namespace SIVUG.Models.DAO
                         {
                             while (reader.Read())
                             {
-                                // Concatenamos para mostrar nombre completo
+                                // Mapeo de datos: BD → Objeto C#
+                                // Nota: Se mapea CandidataId dos veces (id_candidata) para compatibilidad
                                 string nombreCompleto = reader.GetString("nombres") + " " + reader.GetString("apellidos");
 
-                                // Creamos el objeto Candidata
                                 Candidata candidata = new Candidata
                                 {
                                     CandidataId = reader.GetInt32("id_candidata"),
-                                    // Mapeamos propiedades heredadas de Persona/Estudiante si es necesario
                                     Id = reader.GetInt32("id_candidata"),
-                                    Nombres = nombreCompleto,
+                                    Nombres = reader.GetString("nombres"),
+                                    Apellidos = reader.GetString("apellidos"),
+                                    DNI = reader.GetString("dni"),
+                                    Edad = reader.GetByte("edad"),
+                                    // Manejo de NULL para url_foto (imagen opcional)
                                     ImagenPrincipal = reader.IsDBNull(reader.GetOrdinal("url_foto")) ? "" : reader.GetString("url_foto"),
                                     Activa = reader.GetBoolean("activa"),
-
-                                    // --- MAPEO DE LA NUEVA COLUMNA ---
-                                    // Convertimos el entero de la BD (1 o 2) al Enum TipoVoto
+                                    // Conversión: INT en BD → ENUM en C#
                                     tipoCandidatura = (TipoVoto)reader.GetInt32("tipo_candidatura"),
-
-                                    // Propiedad heredada de Estudiante
                                     IdCarrera = reader.GetInt32("id_carrera"),
-
-                                    // Objeto anidado Carrera
+                                    // Objeto anidado: Carrera con Facultad dentro
                                     Carrera = new Carrera
                                     {
                                         Id = reader.GetInt32("id_carrera"),
                                         Nombre = reader.GetString("nombre_carrera"),
                                         IdFacultad = reader.GetInt32("id_facultad"),
-                                        // Objeto anidado Facultad
                                         Facultad = new Facultad
                                         {
                                             Id = reader.GetInt32("id_facultad"),
@@ -94,19 +119,24 @@ namespace SIVUG.Models.DAO
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("Error al obtener candidatas: " + ex.Message);
+                    // Log a consola pero retorna lista vacía (nunca nulo)
+                    Console.WriteLine("Error al obtener candidatas activas: " + ex.Message);
                 }
             }
             return lista;
         }
 
-
-        // Verifica si un estudiante ya está registrado como candidata activa
+        /// <summary>
+        /// Verifica si un estudiante YA está registrado como candidata ACTIVA.
+        /// 
+        /// VALIDACIÓN CRÍTICA para regla de negocio:
+        /// Solo UNA candidata activa por estudiante
+        /// 
+        /// Query: Cuenta registros donde id_candidata = estudiante ID Y activa = 1
+        /// Retorna: true si existe, false si no
+        /// </summary>
         public bool ExisteCandidataActivaPorEstudiante(int estudianteId)
         {
-            // LÓGICA CORREGIDA:
-            // Como Candidata HEREDA de Estudiante, comparten el mismo ID.
-            // No hace falta unir por nombres (que es inseguro), solo buscamos el ID.
             string query = "SELECT COUNT(*) FROM candidatas WHERE id_candidata = @EstudianteId AND activa = 1";
 
             using (var conn = ConexionDB.GetInstance().GetConnection())
@@ -116,30 +146,36 @@ namespace SIVUG.Models.DAO
                     conn.Open();
                     using (var cmd = new MySqlCommand(query, conn))
                     {
+                        // Parámetro @EstudianteId previene SQL Injection
                         cmd.Parameters.AddWithValue("@EstudianteId", estudianteId);
-
-                        // Convertimos a int porque MySQL devuelve Int64 (long) en los Count
                         int count = Convert.ToInt32(cmd.ExecuteScalar());
                         return count > 0;
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("Error al verificar candidata: " + ex.Message);
+                    Console.WriteLine("Error al verificar candidata activa: " + ex.Message);
                     return false;
                 }
             }
         }
 
-        // Promueve a un estudiante a candidata
+        /// <summary>
+        /// OPERACIÓN CRÍTICA: Inserta nueva candidata en BD.
+        /// 
+        /// Datos insertados:
+        /// - id_candidata: ID del estudiante (PK, también FK)
+        /// - url_foto: Ruta a imagen (OPCIONAL - NULL allowed)
+        /// - activa: Siempre 1 al registrar
+        /// - tipo_candidatura: INT (1=Reina, 2=Fotogenia)
+        /// 
+        /// NOTA: El ID NO se genera aquí. Usa el ID del estudiante.
+        /// Los datos de la persona deben existir previamente.
+        /// </summary>
         public bool InsertarCandidato(int estudianteId, Candidata candidata)
         {
-            // LÓGICA CORREGIDA:
-            // 1. Insertamos el 'id_estudiante' como 'id_candidata' (Relación 1 a 1).
-            // 2. No guardamos Nombre ni Facultad aquí (ya están en tablas Persona/Carrera).
-            // 3. 'TipoCandidatura' se eliminó del diseño (lo define el Voto).
-            string query = @"INSERT INTO candidatas (id_candidata, url_foto, activa) 
-                             VALUES (@Id, @UrlFoto, 1)";
+            string query = @"INSERT INTO candidatas (id_candidata, url_foto, activa, tipo_candidatura) 
+                             VALUES (@Id, @UrlFoto, 1, @TipoCandidatura)";
 
             using (var conn = ConexionDB.GetInstance().GetConnection())
             {
@@ -148,14 +184,17 @@ namespace SIVUG.Models.DAO
                     conn.Open();
                     using (var cmd = new MySqlCommand(query, conn))
                     {
-                        // La clave primaria es el mismo ID del estudiante seleccionado
                         cmd.Parameters.AddWithValue("@Id", estudianteId);
-
+                        // Manejo de NULL: si no hay imagen, envía DBNull
                         cmd.Parameters.AddWithValue("@UrlFoto",
                             string.IsNullOrEmpty(candidata.ImagenPrincipal) ? (object)DBNull.Value : candidata.ImagenPrincipal);
+                        // Conversión: ENUM → INT para BD
+                        cmd.Parameters.AddWithValue("@TipoCandidatura", 
+                            (int)(candidata.tipoCandidatura == TipoVoto.Reina ? TipoVoto.Reina : TipoVoto.Fotogenia));
 
+                        // ExecuteNonQuery retorna número de filas afectadas
                         int rowsAffected = cmd.ExecuteNonQuery();
-                        return rowsAffected > 0;
+                        return rowsAffected > 0; // true si al menos una fila se insertó
                     }
                 }
                 catch (Exception ex)
@@ -166,46 +205,227 @@ namespace SIVUG.Models.DAO
             }
         }
 
-        // En SIVUG.Models.DAO.CandidataDAO
-
-        public Candidata ObtenerPorIdUsuario(int idUsuario)
+        /// <summary>
+        /// Obtiene UNA candidata por ID con TODOS sus datos relacionados.
+        /// 
+        /// Similar a ObtenerActivas() pero filtra por ID específico
+        /// NO filtra por activa = 1 (obtiene incluso inactivas)
+        /// 
+        /// Uso: Editar, visualizar detalles de candidata específica
+        /// Retorna: Candidata o null si no existe
+        /// </summary>
+        public Candidata ObtenerPorId(int candidataId)
         {
-            string query = "SELECT * FROM Candidatas WHERE id_candidata = @idCandidata";
+            string query = @"
+                SELECT 
+                    can.id_candidata, 
+                    p.nombres, 
+                    p.apellidos,
+                    p.dni,
+                    p.edad,
+                    c.id_carrera,
+                    c.nombre AS nombre_carrera, 
+                    f.id_facultad,
+                    f.nombre AS nombre_facultad,
+                    can.tipo_candidatura,
+                    can.url_foto, 
+                    can.activa
+                FROM candidatas can
+                INNER JOIN personas p ON can.id_candidata = p.id_persona
+                INNER JOIN estudiantes e ON can.id_candidata = e.id_estudiante
+                INNER JOIN carreras c ON e.id_carrera = c.id_carrera
+                INNER JOIN facultades f ON c.id_facultad = f.id_facultad
+                WHERE can.id_candidata = @Id";
 
             using (var conn = ConexionDB.GetInstance().GetConnection())
             {
-
-
-                conn.Open();
-
-                using (var cmd = new MySqlCommand(query, conn))
+                try
                 {
-                    cmd.Parameters.AddWithValue("@idCandidata", idUsuario);
-
-                    using (var reader = cmd.ExecuteReader())
+                    conn.Open();
+                    using (var cmd = new MySqlCommand(query, conn))
                     {
-                        if (reader.Read())
+                        cmd.Parameters.AddWithValue("@Id", candidataId);
+                        using (var reader = cmd.ExecuteReader())
                         {
-                          
-                            return new Candidata
+                            // Si hay resultado, mapear y retornar
+                            // Si no hay, retorna null
+                            if (reader.Read())
                             {
-                                CandidataId = reader.GetInt32(reader.GetOrdinal("id_candidata")),
-                               
-                                
-                            };
+                                return new Candidata
+                                {
+                                    CandidataId = reader.GetInt32("id_candidata"),
+                                    Id = reader.GetInt32("id_candidata"),
+                                    Nombres = reader.GetString("nombres"),
+                                    Apellidos = reader.GetString("apellidos"),
+                                    DNI = reader.GetString("dni"),
+                                    Edad = reader.GetByte("edad"),
+                                    ImagenPrincipal = reader.IsDBNull(reader.GetOrdinal("url_foto")) ? "" : reader.GetString("url_foto"),
+                                    Activa = reader.GetBoolean("activa"),
+                                    tipoCandidatura = (TipoVoto)reader.GetInt32("tipo_candidatura"),
+                                    IdCarrera = reader.GetInt32("id_carrera"),
+                                    Carrera = new Carrera
+                                    {
+                                        Id = reader.GetInt32("id_carrera"),
+                                        Nombre = reader.GetString("nombre_carrera"),
+                                        IdFacultad = reader.GetInt32("id_facultad"),
+                                        Facultad = new Facultad
+                                        {
+                                            Id = reader.GetInt32("id_facultad"),
+                                            Nombre = reader.GetString("nombre_facultad")
+                                        }
+                                    }
+                                };
+                            }
+                            return null;
                         }
-
-
-                        return null;
                     }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Error al obtener candidata por ID: " + ex.Message);
+                    return null;
                 }
             }
         }
-             
 
+        /// <summary>
+        /// PATRÓN CRÍTICO: Recupera candidata usando ID de ESTUDIANTE después de insertar.
+        /// 
+        /// Flujo de uso:
+        /// 1. InsertarCandidato(estudianteId, ...) - genera candidata en BD
+        /// 2. ObtenerPorIdUsuario(estudianteId) - recupera los datos incluyendo CandidataId
+        /// 3. Usar CandidataId para guardar detalles en CANDIDATA_DETALLES
+        /// 
+        /// Retorna: Candidata con datos básicos (sin Carrera/Facultad por optimizar)
+        /// O null si no existe
+        /// </summary>
+        public Candidata ObtenerPorIdUsuario(int idUsuario)
+        {
+            string query = @"
+        SELECT 
+            can.id_candidata, 
+            p.nombres, 
+            p.apellidos,
+            p.dni,
+            p.edad,
+            can.activa
+        FROM personas p
+        INNER JOIN candidatas can ON can.id_candidata = p.id_persona
+        WHERE p.id_usuario = @idUsuario";
+
+            using (var conn = ConexionDB.GetInstance().GetConnection())
+            {
+                try
+                {
+                    conn.Open();
+                    using (var cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@idUsuario", idUsuario);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                return new Candidata
+                                {
+                                    CandidataId = reader.GetInt32("id_candidata"),
+                                    Id = reader.GetInt32("id_candidata"),
+                                    Nombres = reader.GetString("nombres"),
+                                    Apellidos = reader.GetString("apellidos"),
+                                    DNI = reader.GetString("dni"),
+                                    Edad = reader.GetByte("edad"),
+                                    Activa = reader.GetBoolean("activa")
+                                };
+                            }
+                            return null;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Error al obtener candidata por ID usuario: " + ex.Message);
+                    return null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// OPERACIÓN CRÍTICA: Actualiza datos de candidata EXISTENTE.
+        /// 
+        /// Actualiza DOS tablas en UNA misma conexión (sin transacción explícita):
+        /// 1. personas: nombres, apellidos, edad
+        /// 2. candidatas: url_foto, tipo_candidatura
+        /// 
+        /// VALIDACIÓN: El Service se encarga de validar cambios
+        /// Este DAO solo persiste lo que recibe
+        /// </summary>
+        public bool ActualizarCandidata(Candidata candidata)
+        {
+            if (candidata == null)
+                return false;
+
+            // Query 1: Actualizar datos heredados de Persona
+            string queryPersona = @"UPDATE personas 
+                                    SET nombres = @Nombres, 
+                                        apellidos = @Apellidos, 
+                                        edad = @Edad 
+                                    WHERE id_persona = @Id";
+
+            // Query 2: Actualizar datos específicos de Candidata
+            string queryCandidata = @"UPDATE candidatas 
+                                      SET url_foto = @UrlFoto, 
+                                          tipo_candidatura = @TipoCandidatura 
+                                      WHERE id_candidata = @Id";
+
+            using (var conn = ConexionDB.GetInstance().GetConnection())
+            {
+                try
+                {
+                    conn.Open();
+
+                    // PASO 1: Actualizar tabla personas
+                    using (var cmd = new MySqlCommand(queryPersona, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Nombres", candidata.Nombres ?? "");
+                        cmd.Parameters.AddWithValue("@Apellidos", candidata.Apellidos ?? "");
+                        cmd.Parameters.AddWithValue("@Edad", candidata.Edad);
+                        cmd.Parameters.AddWithValue("@Id", candidata.Id);
+                        cmd.ExecuteNonQuery(); // Ejecuta sin verificar filas afectadas
+                    }
+
+                    // PASO 2: Actualizar tabla candidatas
+                    using (var cmd = new MySqlCommand(queryCandidata, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@UrlFoto", 
+                            string.IsNullOrEmpty(candidata.ImagenPrincipal) ? (object)DBNull.Value : candidata.ImagenPrincipal);
+                        cmd.Parameters.AddWithValue("@TipoCandidatura", (int)candidata.tipoCandidatura);
+                        cmd.Parameters.AddWithValue("@Id", candidata.CandidataId);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    return true; // Si ambas queries completaron sin error, retorna true
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Error al actualizar candidata: " + ex.Message);
+                    return false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// PATRÓN SOFT DELETE: Cambia estado activa = 0 (NO elimina físicamente).
+        /// 
+        /// Ventajas:
+        /// ✓ Preserva historial y auditoría
+        /// ✓ No afecta foreign keys
+        /// ✓ Permite recuperar candidatas si es necesario
+        /// 
+        /// Flujo:
+        /// - BtnEliminar → EliminarCandidata() → ActualizarEstadoCandidata(false)
+        /// - Después, ObtenerActivas() no retorna esta candidata (WHERE activa = 1)
+        /// </summary>
         public bool ActualizarEstadoCandidato(int candidataId, bool activa)
         {
-            // Ajustado a nombres de columna MySQL (snake_case)
             string query = @"UPDATE candidatas SET activa = @Activa WHERE id_candidata = @CandidataId";
 
             using (var conn = ConexionDB.GetInstance().GetConnection())
@@ -216,7 +436,7 @@ namespace SIVUG.Models.DAO
                     using (var cmd = new MySqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@CandidataId", candidataId);
-                        // MySQL trata los booleanos como 1 o 0
+                        // Conversión: bool → INT (1 o 0)
                         cmd.Parameters.AddWithValue("@Activa", activa);
 
                         int rowsAffected = cmd.ExecuteNonQuery();
@@ -225,7 +445,7 @@ namespace SIVUG.Models.DAO
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("Error al actualizar estado: " + ex.Message);
+                    Console.WriteLine("Error al actualizar estado de candidata: " + ex.Message);
                     return false;
                 }
             }
