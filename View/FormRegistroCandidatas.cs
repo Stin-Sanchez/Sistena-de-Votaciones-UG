@@ -102,7 +102,7 @@ namespace SIVUG.View
             CargarCandidatasActivas();
         }
 
-        private void FormRegistroCandidatas_Load(object sender, EventArgs e) {  }
+        private void FormRegistroCandidatas_Load(object sender, EventArgs e) { }
 
         // ==================== CONFIGURACIÓN DEL FORMULARIO ====================
 
